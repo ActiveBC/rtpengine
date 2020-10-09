@@ -196,6 +196,17 @@ out:
 			ssrc_tls_shutdown(ret);
 			goto tls_out;
 		}
+
+		if (ca_file) {
+			int success = SSL_CTX_load_verify_locations(ret->ssl_ctx, ca_file, ca_path);
+			if (!success)
+			{
+				ilog(LOG_ERR, "Loading CA files failed");
+				ssrc_tls_shutdown(ret);
+				goto tls_out;
+			}
+		}
+
 		ret->ssl = SSL_new(ret->ssl_ctx);
 		if (!ret->ssl) {
 			ilog(LOG_ERR, "Failed to create TLS connection");

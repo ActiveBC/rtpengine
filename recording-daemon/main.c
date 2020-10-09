@@ -48,6 +48,8 @@ char *forward_to = NULL;
 static char *tls_send_to = NULL;
 endpoint_t tls_send_to_ep;
 int tls_resample = 8000;
+char *ca_path = NULL;
+char *ca_file = NULL;
 
 static GQueue threads = G_QUEUE_INIT; // only accessed from main thread
 
@@ -165,6 +167,8 @@ static void options(int *argc, char ***argv) {
 		{ "forward-to", 	0,   0, G_OPTION_ARG_STRING,	&forward_to,	"Where to forward to (unix socket)",	"PATH"		},
 		{ "tls-send-to", 	0,   0, G_OPTION_ARG_STRING,	&tls_send_to,	"Where to send to (TLS destination)",	"IP:PORT"	},
 		{ "tls-resample", 	0,   0, G_OPTION_ARG_INT,	&tls_resample,	"Sampling rate for TLS PCM output",	"INT"		},
+		{ "tls-ca-file", 	0,   0, G_OPTION_ARG_STRING,	&ca_file,	"Custom root CA file",	"STRING"		},
+		{ "tls-ca-path", 	0,   0, G_OPTION_ARG_STRING,	&ca_path,	"Custom root CA path",	"STRING"		},
 		{ NULL, }
 	};
 
