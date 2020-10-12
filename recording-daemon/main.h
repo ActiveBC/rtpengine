@@ -31,6 +31,7 @@ extern endpoint_t tls_send_to_ep;
 extern int tls_resample;
 extern char *ca_path;
 extern char *ca_file;
+extern int tls_force_send;
 
 extern volatile int shutdown_flag;
 
