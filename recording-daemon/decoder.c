@@ -18,6 +18,7 @@
 #include "streambuf.h"
 #include "main.h"
 #include "packet.h"
+#include "tag.h"
 
 
 int resample_audio;
@@ -146,7 +147,18 @@ no_recording:
 		if (!ssrc->sent_intro) {
 			if (metafile->metadata) {
 				dbg("Writing metadata header to TLS");
-				streambuf_write(ssrc->tls_fwd_stream, metafile->metadata, strlen(metafile->metadata) + 1);
+				const int buf_size = 512;
+				char metadata_buffer[buf_size];
+
+				sprintf(metadata_buffer, "%s|stream-name:%s|id:%ld|tag:%ld", metafile->metadata, stream->name, stream->id, stream->tag);
+
+				tag_t *tag = tag_get(metafile, stream->tag);
+				if (tag)
+				{
+					sprintf(metadata_buffer + strlen(metadata_buffer), "|tag-name:%s|", tag->name);
+				}
+
+				streambuf_write(ssrc->tls_fwd_stream, metadata_buffer, strlen(metadata_buffer) + 1);
 			}
 			else {
 				ilog(LOG_WARN, "No metadata present for forwarding connection");
