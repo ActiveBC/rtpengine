@@ -147,7 +147,7 @@ no_recording:
 		if (!ssrc->sent_intro) {
 			if (metafile->metadata) {
 				dbg("Writing metadata header to TLS");
-				const int buf_size = 512;
+				const int buf_size = 256;
 				char metadata_buffer[buf_size];
 
 				sprintf(metadata_buffer, "%s|stream-name:%s|id:%ld|tag:%ld", metafile->metadata, stream->name, stream->id, stream->tag);
@@ -158,7 +158,7 @@ no_recording:
 					sprintf(metadata_buffer + strlen(metadata_buffer), "|tag-name:%s|", tag->name);
 				}
 
-				streambuf_write(ssrc->tls_fwd_stream, metadata_buffer, strlen(metadata_buffer) + 1);
+				streambuf_write(ssrc->tls_fwd_stream, metadata_buffer, buf_size);
 			}
 			else {
 				ilog(LOG_WARN, "No metadata present for forwarding connection");
