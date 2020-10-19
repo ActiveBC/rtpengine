@@ -6,6 +6,7 @@
 #include <glib.h>
 #include "log.h"
 #include "db.h"
+#include "main.h"
 
 
 //static int output_codec_id;
@@ -156,6 +157,17 @@ static int output_shutdown(output_t *output) {
 
 	output->fmtctx = NULL;
 	output->avst = NULL;
+
+	if (output_force_disable) {
+		char full_fn[PATH_MAX*2];
+		snprintf(full_fn, sizeof(full_fn), "%s.%s", output->full_filename, output->file_format);
+
+		int res = remove(full_fn);
+		if (res < 0)
+		{
+			ilog(LOG_ERR, "failed to delete file %s: %d", full_fn, errno);
+		}
+	}
 
 	return ret;
 }

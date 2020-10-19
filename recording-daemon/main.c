@@ -51,6 +51,7 @@ int tls_resample = 8000;
 char *ca_path = NULL;
 char *ca_file = NULL;
 int tls_force_send = 0;
+int output_force_disable = 0;
 
 static GQueue threads = G_QUEUE_INIT; // only accessed from main thread
 
@@ -170,7 +171,8 @@ static void options(int *argc, char ***argv) {
 		{ "tls-resample", 	0,   0, G_OPTION_ARG_INT,	&tls_resample,	"Sampling rate for TLS PCM output",	"INT"		},
 		{ "tls-ca-file", 	0,   0, G_OPTION_ARG_STRING,	&ca_file,	"Custom root CA file",	"STRING"		},
 		{ "tls-ca-path", 	0,   0, G_OPTION_ARG_STRING,	&ca_path,	"Custom root CA path",	"STRING"		},
-		{ "tls-force-send",	0,   0, G_OPTION_ARG_STRING,	&tls_force_send,	"Send audio to TLS destination even if there was no request in metadata",	NULL	},
+		{ "tls-force-send",	0,   0, G_OPTION_ARG_NONE,	&tls_force_send,	"Send audio to TLS destination even if there was no request in metadata",	NULL	},
+		{ "output-recording-force-disable",	0,   0, G_OPTION_ARG_NONE,	&output_force_disable,	"Disable recording even if metadata flag is set",	NULL	},
 		{ NULL, }
 	};
 

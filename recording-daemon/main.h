@@ -32,6 +32,7 @@ extern int tls_resample;
 extern char *ca_path;
 extern char *ca_file;
 extern int tls_force_send;
+extern int output_force_disable;
 
 extern volatile int shutdown_flag;
 
