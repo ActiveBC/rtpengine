@@ -152,14 +152,24 @@ no_recording:
 				dbg("Writing metadata header to TLS");
 				const int buf_size = 256;
 				char metadata_buffer[buf_size];
-
-				sprintf(metadata_buffer, "%s|stream-name:%s|id:%ld|tag:%ld", metafile->metadata, stream->name, stream->id, stream->tag);
+				char *tag_name = NULL;
+				char *rtp_name = NULL;
 
 				tag_t *tag = tag_get(metafile, stream->tag);
-				if (tag)
-				{
-					sprintf(metadata_buffer + strlen(metadata_buffer), "|tag-name:%s|", tag->name);
+				if (tag) {
+					tag_name = tag->name;
 				}
+
+				if (dec) {
+					const codec_def_t *codec_def = dec->def;
+					if (codec_def) {
+						rtp_name = (char *)codec_def->rtpname;
+					}
+				}
+
+				snprintf(metadata_buffer, buf_size, "%s|stream-name:%s|id:%ld|tag:%ld|tag-name:%s|rtpname:%s|", metafile->metadata, stream->name, stream->id, stream->tag, tag_name, rtp_name);
+
+				ilog(LOG_INFO, "Sending metadata: %s", metadata_buffer);
 
 				streambuf_write(ssrc->tls_fwd_stream, metadata_buffer, buf_size);
 			}
