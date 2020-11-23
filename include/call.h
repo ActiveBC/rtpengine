@@ -94,7 +94,7 @@ enum call_type {
 #define SHARED_FLAG_STRICT_SOURCE		0x00000100
 #define SHARED_FLAG_MEDIA_HANDOVER		0x00000200
 #define SHARED_FLAG_TRICKLE_ICE			0x00000400
-#define SHARED_FLAG_ICE_LITE			0x00000800
+#define SHARED_FLAG_ICE_LITE_PEER		0x00000800
 #define SHARED_FLAG_UNIDIRECTIONAL		0x00001000
 #define SHARED_FLAG_RTCP_FB			0x00002000
 
@@ -112,7 +112,7 @@ enum call_type {
 #define SP_FLAG_STRICT_SOURCE			SHARED_FLAG_STRICT_SOURCE
 #define SP_FLAG_MEDIA_HANDOVER			SHARED_FLAG_MEDIA_HANDOVER
 #define SP_FLAG_TRICKLE_ICE			SHARED_FLAG_TRICKLE_ICE
-#define SP_FLAG_ICE_LITE			SHARED_FLAG_ICE_LITE
+#define SP_FLAG_ICE_LITE_PEER			SHARED_FLAG_ICE_LITE_PEER
 #define SP_FLAG_RTCP_FB				SHARED_FLAG_RTCP_FB
 
 /* struct packet_stream */
@@ -146,13 +146,14 @@ enum call_type {
 #define MEDIA_FLAG_PASSTHRU			0x00100000
 #define MEDIA_FLAG_ICE				SHARED_FLAG_ICE
 #define MEDIA_FLAG_TRICKLE_ICE			SHARED_FLAG_TRICKLE_ICE
-#define MEDIA_FLAG_ICE_LITE			SHARED_FLAG_ICE_LITE
+#define MEDIA_FLAG_ICE_LITE_PEER		SHARED_FLAG_ICE_LITE_PEER
 #define MEDIA_FLAG_ICE_CONTROLLING		0x00200000
 #define MEDIA_FLAG_LOOP_CHECK			0x00400000
 #define MEDIA_FLAG_TRANSCODE			0x00800000
 #define MEDIA_FLAG_PTIME_OVERRIDE		0x01000000
 #define MEDIA_FLAG_RTCP_FB			SHARED_FLAG_RTCP_FB
 #define MEDIA_FLAG_GENERATOR			0x02000000
+#define MEDIA_FLAG_ICE_LITE_SELF		0x04000000
 
 /* access macros */
 #define SP_ISSET(p, f)		bf_isset(&(p)->sp_flags, SP_FLAG_ ## f)
@@ -196,6 +197,7 @@ struct media_player;
 struct send_timer;
 struct transport_protocol;
 struct jitter_buffer;
+struct codec_tracker;
 
 
 typedef bencode_buffer_t call_buffer_t;
@@ -325,6 +327,7 @@ struct call_media {
 	GHashTable		*codecs_send; // int payload type -> struct rtp_payload_type
 	GHashTable		*codec_names_send; // codec name -> GQueue of int payload types; storage container
 	GQueue			codecs_prefs_send; // storage container
+	struct codec_tracker	*codec_tracker;
 
 	GQueue			sdp_attributes; // str_sprintf()
 

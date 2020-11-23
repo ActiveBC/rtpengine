@@ -48,6 +48,7 @@
 #include "dtmf.h"
 #include "jitter_buffer.h"
 #include "websocket.h"
+#include "codec.h"
 
 
 
@@ -78,6 +79,7 @@ struct rtpengine_config rtpe_config = {
 	.media_num_threads = -1,
 	.dtls_rsa_key_size = 2048,
 	.dtls_signature = 256,
+	.max_dtx = 30,
 };
 
 static void sighandler(gpointer x) {
@@ -172,8 +174,11 @@ static void __find_if_name(char *s, struct ifaddrs *ifas, GQueue *addrs) {
 		}
 		else if (ifa->ifa_addr->sa_family == AF_INET6) {
 			struct sockaddr_in6 *sin = (void *) ifa->ifa_addr;
-			if (sin->sin6_scope_id)
-				continue; // link-local
+			if (sin->sin6_scope_id) {
+				// link-local
+				g_slice_free1(sizeof(*addr), addr);
+				continue;
+			}
 			addr->family = __get_socket_family_enum(SF_IP6);
 			addr->u.ipv6 = sin->sin6_addr;
 		}
@@ -410,9 +415,11 @@ static void options(int *argc, char ***argv) {
 		{ "b2b-url",	'b', 0, G_OPTION_ARG_STRING,	&rtpe_config.b2b_url,	"XMLRPC URL of B2B UA"	,	"STRING"	},
 		{ "log-facility-cdr",0,  0, G_OPTION_ARG_STRING, &log_facility_cdr_s, "Syslog facility to use for logging CDRs", "daemon|local0|...|local7"},
 		{ "log-facility-rtcp",0,  0, G_OPTION_ARG_STRING, &log_facility_rtcp_s, "Syslog facility to use for logging RTCP", "daemon|local0|...|local7"},
+#ifdef WITH_TRANSCODING
 		{ "log-facility-dtmf",0,  0, G_OPTION_ARG_STRING, &log_facility_dtmf_s, "Syslog facility to use for logging DTMF", "daemon|local0|...|local7"},
-		{ "log-format",	0, 0,	G_OPTION_ARG_STRING,	&log_format,	"Log prefix format",		"default|parsable"},
 		{ "dtmf-log-dest", 0,0,	G_OPTION_ARG_STRING,	&dtmf_udp_ep,	"Destination address for DTMF logging via UDP",	"IP46|HOSTNAME:PORT"	},
+#endif
+		{ "log-format",	0, 0,	G_OPTION_ARG_STRING,	&log_format,	"Log prefix format",		"default|parsable"},
 		{ "xmlrpc-format",'x', 0, G_OPTION_ARG_INT,	&rtpe_config.fmt,	"XMLRPC timeout request format to use. 0: SEMS DI, 1: call-id only, 2: Kamailio",	"INT"	},
 		{ "num-threads",  0, 0, G_OPTION_ARG_INT,	&rtpe_config.num_threads,	"Number of worker threads to create",	"INT"	},
 		{ "media-num-threads",  0, 0, G_OPTION_ARG_INT,	&rtpe_config.media_num_threads,	"Number of worker threads for media playback",	"INT"	},
@@ -455,6 +462,10 @@ static void options(int *argc, char ***argv) {
 		{ "https-cert", 0,0,	G_OPTION_ARG_STRING,	&rtpe_config.https_cert,"Certificate for HTTPS and WSS","FILE"},
 		{ "https-key", 0,0,	G_OPTION_ARG_STRING,	&rtpe_config.https_key,	"Private key for HTTPS and WSS","FILE"},
 		{ "http-threads", 0,0,	G_OPTION_ARG_INT,	&rtpe_config.http_threads,"Number of worker threads for HTTP and WS","INT"},
+#ifdef WITH_TRANSCODING
+		{ "dtx-delay",	0,0,	G_OPTION_ARG_INT,	&rtpe_config.dtx_delay,	"Delay in milliseconds to trigger DTX handling","INT"},
+		{ "max-dtx",	0,0,	G_OPTION_ARG_INT,	&rtpe_config.max_dtx,	"Maximum duration of DTX handling",	"INT"},
+#endif
 
 		{ NULL, }
 	};
@@ -837,6 +848,7 @@ static void init_everything(void) {
 	dtmf_init();
 	jitter_buffer_init();
 	t38_init();
+	codecs_init();
 }
 
 
@@ -1022,6 +1034,7 @@ int main(int argc, char **argv) {
 		if (rtpe_config.jb_length > 0)
 			thread_create_detach_prio(jitter_buffer_loop, NULL, rtpe_config.scheduling,
 					rtpe_config.priority);
+		thread_create_detach_prio(codec_timers_loop, NULL, rtpe_config.scheduling, rtpe_config.priority);
 	}
 
 
@@ -1068,9 +1081,11 @@ int main(int argc, char **argv) {
 	ice_free();
 	dtls_cert_free();
 	control_ng_cleanup();
+	codecs_cleanup();
 
 	redis_close(rtpe_redis);
-	redis_close(rtpe_redis_write);
+	if (rtpe_redis_write != rtpe_redis)
+		redis_close(rtpe_redis_write);
 	redis_close(rtpe_redis_notify);
 
 	free_prefix();

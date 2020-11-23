@@ -63,6 +63,10 @@ static int ilbc_decoder_input(decoder_t *dec, const str *data, GQueue *out);
 static const char *dtmf_decoder_init(decoder_t *, const str *, const str *);
 static int dtmf_decoder_input(decoder_t *dec, const str *data, GQueue *out);
 
+static int format_cmp_ignore(const struct rtp_payload_type *, const struct rtp_payload_type *);
+
+static int amr_packet_lost(decoder_t *, GQueue *);
+
 
 
 
@@ -368,6 +372,7 @@ static codec_def_t __codec_defs[] = {
 		.codec_type = &codec_type_amr,
 		.set_enc_options = amr_set_enc_options,
 		.set_dec_options = amr_set_dec_options,
+		.packet_lost = amr_packet_lost,
 	},
 	{
 		.rtpname = "AMR-WB",
@@ -385,6 +390,7 @@ static codec_def_t __codec_defs[] = {
 		.codec_type = &codec_type_amr,
 		.set_enc_options = amr_set_enc_options,
 		.set_dec_options = amr_set_dec_options,
+		.packet_lost = amr_packet_lost,
 	},
 	{
 		.rtpname = "telephone-event",
@@ -396,6 +402,7 @@ static codec_def_t __codec_defs[] = {
 		.default_clockrate = 8000,
 		.default_channels = 1,
 		.default_fmtp = "0-15",
+		.format_cmp = format_cmp_ignore,
 		.codec_type = &codec_type_dtmf,
 		.support_encoding = 1,
 		.support_decoding = 1,
@@ -659,14 +666,15 @@ err:
 	return -1;
 }
 
-int decoder_input_data(decoder_t *dec, const str *data, unsigned long ts,
+static int __decoder_input_data(decoder_t *dec, const str *data, unsigned long ts,
 		int (*callback)(decoder_t *, AVFrame *, void *u1, void *u2), void *u1, void *u2)
 {
 	GQueue frames = G_QUEUE_INIT;
 
 	if (G_UNLIKELY(!dec))
 		return -1;
-	if (!data || !data->s || !data->len)
+
+	if (!data && !dec->def->packet_lost)
 		return 0;
 
 	ts *= dec->def->clockrate_mult;
@@ -692,7 +700,10 @@ int decoder_input_data(decoder_t *dec, const str *data, unsigned long ts,
 	}
 	dec->rtp_ts = ts;
 
-	dec->def->codec_type->decoder_input(dec, data, &frames);
+	if (data)
+		dec->def->codec_type->decoder_input(dec, data, &frames);
+	else
+		dec->def->packet_lost(dec, &frames);
 
 	AVFrame *frame;
 	int ret = 0;
@@ -710,6 +721,18 @@ int decoder_input_data(decoder_t *dec, const str *data, unsigned long ts,
 	}
 
 	return ret;
+}
+int decoder_input_data(decoder_t *dec, const str *data, unsigned long ts,
+		int (*callback)(decoder_t *, AVFrame *, void *u1, void *u2), void *u1, void *u2)
+{
+	if (!data || !data->s || !data->len)
+		return 0;
+	return __decoder_input_data(dec, data, ts, callback, u1, u2);
+}
+int decoder_lost_packet(decoder_t *dec, unsigned long ts,
+		int (*callback)(decoder_t *, AVFrame *, void *u1, void *u2), void *u1, void *u2)
+{
+	return __decoder_input_data(dec, NULL, ts, callback, u1, u2);
 }
 
 
@@ -1868,7 +1891,7 @@ static int amr_decoder_input(decoder_t *dec, const str *data, GQueue *out) {
 
 		unsigned int bits = dec->codec_options.amr.bits_per_frame[ft];
 
-		// AMR encoder expects an octet aligned TOC byte plus the payload
+		// AMR decoder expects an octet aligned TOC byte plus the payload
 		unsigned char frame_buf[(bits + 7) / 8 + 1 + 1];
 		str frame = STR_CONST_INIT_BUF(frame_buf);
 		str_shift(&frame, 1);
@@ -2060,6 +2083,15 @@ static int packetizer_amr(AVPacket *pkt, GString *buf, str *output, encoder_t *e
 	unsigned int bytes = (bits + 7) / 8;
 	output->len = bytes;
 
+	return 0;
+}
+static int amr_packet_lost(decoder_t *dec, GQueue *out) {
+	ilog(LOG_DEBUG, "pushing empty/lost frame to AMR decoder");
+	unsigned char frame_buf[1];
+	frame_buf[0] = 0xf << 3; // no data
+	str frame = STR_CONST_INIT_BUF(frame_buf);
+	if (avc_decoder_input(dec, &frame, out))
+		ilog(LOG_WARN | LOG_FLAG_LIMIT, "Error while writing 'no data' frame to AMR decoder");
 	return 0;
 }
 
@@ -2274,5 +2306,11 @@ static int dtmf_decoder_input(decoder_t *dec, const str *data, GQueue *out) {
 
 	dec->u.dtmf.duration = duration;
 
+	return 0;
+}
+
+
+
+static int format_cmp_ignore(const struct rtp_payload_type *a, const struct rtp_payload_type *b) {
 	return 0;
 }

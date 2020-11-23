@@ -106,6 +106,8 @@ struct rtpengine_config {
 	char			*https_cert;
 	char			*https_key;
 	int			http_threads;
+	int			dtx_delay;
+	int			max_dtx;
 };
 
 

@@ -153,6 +153,7 @@ void config_load(int *argc, char ***argv, GOptionEntry *app_entries, const char 
 		{ "log-mark-suffix",	0,   0, G_OPTION_ARG_STRING,	&rtpe_common_config_ptr->log_mark_suffix,"Suffix for sensitive log info",	NULL		},
 		{ "pidfile",		'p', 0, G_OPTION_ARG_FILENAME,	&rtpe_common_config_ptr->pidfile,	"Write PID to file",			"FILE"		},
 		{ "foreground",		'f', 0, G_OPTION_ARG_NONE,	&rtpe_common_config_ptr->foreground,	"Don't fork to background",		NULL		},
+		{ "thread-stack",	0,0,	G_OPTION_ARG_INT,	&rtpe_common_config_ptr->thread_stack,	"Thread stack size in kB",		"INT"		},
 		{ NULL, }
 	};
 
@@ -322,6 +323,9 @@ out:
 		max_log_line_length = 0;
 	}
 
+	if (rtpe_common_config_ptr->thread_stack == 0)
+		rtpe_common_config_ptr->thread_stack = 2048;
+
 
 	return;
 
@@ -359,9 +363,8 @@ int uint32_eq(const void *a, const void *b) {
 	return (*A == *B) ? TRUE : FALSE;
 }
 
-int timeval_cmp_ptr(const void *a, const void *b) {
+int timeval_cmp_zero(const void *a, const void *b) {
 	const struct timeval *A = a, *B = b;
-	int ret;
 
 	/* zero timevals go last */
 	if (A->tv_sec == 0 && B->tv_sec != 0)
@@ -369,13 +372,18 @@ int timeval_cmp_ptr(const void *a, const void *b) {
 	if (B->tv_sec == 0 && A->tv_sec == 0)
 		return -1;
 	if (A->tv_sec == 0 && B->tv_sec == 0)
-		goto ptr;
+		return 0;
 	/* earlier timevals go first */
-	ret = timeval_cmp(A, B);
+	return timeval_cmp(A, B);
+}
+
+int timeval_cmp_ptr(const void *a, const void *b) {
+	const struct timeval *A = a, *B = b;
+	int ret;
+	ret = timeval_cmp_zero(A, B);
 	if (ret)
 		return ret;
 	/* equal timeval, so use pointer as tie breaker */
-ptr:
 	if (A < B)
 		return -1;
 	if (A > B)

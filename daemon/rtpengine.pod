@@ -288,6 +288,11 @@ decoding the media file, and another to schedule and send out RTP packets.
 So for example, if this option is set to 4, in total 8 threads will be
 launched.
 
+=item B<--thread-stack=>I<INT>
+
+Set the stack size of each thread to the value given in kB. Defaults to 2048
+kB. Can be set to -1 to leave the default provided by the OS unchanged.
+
 =item B<--sip-source>
 
 The original B<rtpproxy> as well as older version of B<rtpengine> by default
@@ -720,6 +725,25 @@ listener, in PEM format.
 Number of worker threads for HTTP/HTTPS/WS/WSS. If not specified, then the same
 number as given under B<num-threads> will be used. If no HTTP listeners are
 enabled, then no threads are created.
+
+=item B<--dtx-delay=>I<INT>
+
+Processing delay in milliseconds to handle discontinuous transmission (DTX) or
+other transmission gaps for codecs that support it (currently only AMR and
+AMR-WB). Defaults to zero (disabled) and applicable to transcoded audio streams
+only. When enabled, delays processing of received packets for the specified
+time (much like a jitter buffer) in order to trigger DTX handling when a
+transmission gap occurs. The decoder is then instructed to fill in the missing
+time during a transmission gap, for example by generating comfort noise. The
+delay should be configured to just slightly more than the expected incoming
+jitter.
+
+=item B<--max-dtx=>I<INT>
+
+Maximum duration for DTX handling in seconds. If no further RTP media is
+received within this time frame, then DTX processing will stop. Can be set to
+zero or negative to disable and keep DTX processing on indefinitely. Defaults
+to 30 seconds.
 
 =back
 

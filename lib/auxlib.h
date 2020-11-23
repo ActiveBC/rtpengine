@@ -24,6 +24,7 @@ struct rtpengine_common_config {
 	char *log_mark_suffix;
 	char *pidfile;
 	int foreground;
+	int thread_stack;
 };
 
 extern struct rtpengine_common_config *rtpe_common_config_ptr;
@@ -259,6 +260,7 @@ INLINE int timeval_cmp(const struct timeval *a, const struct timeval *b) {
 	return long_cmp(a->tv_usec, b->tv_usec);
 }
 // as a GCompareFunc
+int timeval_cmp_zero(const void *a, const void *b);
 int timeval_cmp_ptr(const void *a, const void *b);
 
 INLINE void timeval_lowest(struct timeval *l, const struct timeval *n) {

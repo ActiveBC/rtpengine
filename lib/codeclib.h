@@ -71,6 +71,8 @@ typedef int packetizer_f(AVPacket *, GString *, str *, encoder_t *);
 typedef void format_init_f(struct rtp_payload_type *);
 typedef void set_enc_options_f(encoder_t *, const str *, const str *);
 typedef void set_dec_options_f(decoder_t *, const str *, const str *);
+typedef int format_cmp_f(const struct rtp_payload_type *, const struct rtp_payload_type *);
+typedef int packet_lost_f(decoder_t *, GQueue *);
 
 
 
@@ -126,6 +128,7 @@ struct codec_def_s {
 	const int default_bitrate;
 	int default_ptime;
 	const char *default_fmtp;
+	format_cmp_f * const format_cmp;
 	packetizer_f * const packetizer;
 	const int bits_per_sample;
 	const enum media_type media_type;
@@ -134,6 +137,7 @@ struct codec_def_s {
 	format_init_f *init;
 	set_enc_options_f *set_enc_options;
 	set_dec_options_f *set_dec_options;
+	packet_lost_f *packet_lost;
 
 	// filled in by codeclib_init()
 	str rtpname_str;
@@ -274,6 +278,8 @@ decoder_t *decoder_new_fmtp(const codec_def_t *def, int clockrate, int channels,
 void decoder_close(decoder_t *dec);
 int decoder_input_data(decoder_t *dec, const str *data, unsigned long ts,
 		int (*callback)(decoder_t *, AVFrame *, void *u1, void *u2), void *u1, void *u2);
+int decoder_lost_packet(decoder_t *dec, unsigned long ts,
+		int (*callback)(decoder_t *, AVFrame *, void *u1, void *u2), void *u1, void *u2);
 
 
 encoder_t *encoder_new(void);
@@ -337,9 +343,13 @@ INLINE int decoder_event(decoder_t *dec, enum codec_event event, void *ptr) {
 
 #else
 
+typedef int format_cmp_f(const void *, const void *);
+
 // stubs
 struct codec_def_s {
 	int dtmf;
+	int supplemental;
+	format_cmp_f * const format_cmp;
 };
 struct packet_sequencer_s {
 };

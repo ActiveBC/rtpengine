@@ -38,6 +38,483 @@ my ($sock_a, $sock_b, $sock_c, $sock_d, $port_a, $port_b, $ssrc, $resp,
 
 if (0) {
 
+# AMR SID, needs --cn-delay=..
+
+($sock_a, $sock_b) = new_call([qw(198.51.100.10 4024)], [qw(198.51.100.10 4026)]);
+
+($port_a) = offer('AMR SID',
+	{ ICE => 'remove', replace => ['origin'], codec => { transcode => ['PCMA'],
+	'set' => ['AMR-WB/16000/1/23850'] } }, <<SDP);
+v=0
+o=- 1545997027 1 IN IP4 198.51.100.10
+s=tester
+t=0 0
+m=audio 4024 RTP/AVP 96
+c=IN IP4 198.51.100.10
+a=rtpmap:96 AMR-WB/16000
+a=fmtp:96 octet-align=1
+a=sendrecv
+----------------------------------
+v=0
+o=- 1545997027 1 IN IP4 203.0.113.1
+s=tester
+t=0 0
+m=audio PORT RTP/AVP 96 8
+c=IN IP4 203.0.113.1
+a=rtpmap:96 AMR-WB/16000
+a=rtpmap:8 PCMA/8000
+a=fmtp:96 octet-align=1
+a=sendrecv
+a=rtcp:PORT
+SDP
+
+($port_b) = answer('AMR-WB -> PCM CMR',
+	{ ICE => 'remove', replace => ['origin'] }, <<SDP);
+v=0
+o=- 1545997027 1 IN IP4 198.51.100.10
+s=tester
+t=0 0
+m=audio 4026 RTP/AVP 8
+c=IN IP4 198.51.100.10
+a=sendrecv
+--------------------------------------
+v=0
+o=- 1545997027 1 IN IP4 203.0.113.1
+s=tester
+t=0 0
+m=audio PORT RTP/AVP 96
+c=IN IP4 203.0.113.1
+a=rtpmap:96 AMR-WB/16000
+a=fmtp:96 octet-align=1
+a=sendrecv
+a=rtcp:PORT
+SDP
+
+snd($sock_a, $port_b, rtp(96, 2000, 4000, 0x5678, "\xf0\x1c\xd0\x46\x09\xa1\xf1\x73\x02\x71\x71\x00\x0a\x16\x87\x74\xea\x6a\x8c\x06\x67\x66\xec\xf5\x67\x6c\x54\x6d\x45\x4c\x7c\x59\x8d\x7c\x55\xc4\x6c\x50"));
+Time::HiRes::usleep(20000); # 20 ms
+snd($sock_a, $port_b, rtp(96, 2001, 4240, 0x5678, "\xf0\x1c\xe0\x92\x30\xf3\xf4\xff\x3d\x23\xdb\x6b\x59\x4f\xd5\x12\xad\xff\x5b\xf8\x88\x53\x85\x74\x19\x6d\x65\x63\x6e\x94\xbb\x5b\x9f\x7d\x97\x3c\x28\xe8"));
+($ssrc) = rcv($sock_b, $port_a, rtpm(8, 2000, 4000, -1, "\xd5\xd5\xd5\xd5\xd5\xd5\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\xd5\x55\xd4\xd4\xd7\xd4\xd7\xd5\xd0\x52\x72\x64\x66\x66\x66\x66\x67\x67\x67\x65\x7a\x79\x7c\x72\x70\x77\x75\x4e\x43\x47\x5b\x5c\x5d\x55\x5d\x71\x7e\x7b\x79\x7e\x7c\x7d\x73\x70\x77\x4b\x4c\x45\xc1\xf0\xf1\xfd\xf8\xfa\xe5\xe7\xe6\xe6\xe1\xe6\xe0\xe0\xe1\xe0\xe3\xe2\xe2\xe2\xed\xec\xef\xec\xec\xec\xed\xe2\xe3\xe3\xe1\xe1\xe7\xe7\xe7\xe5\xe5\xfa\xfa\xfb\xfb\xfb\xff\xfc\xf2\xf3\xf1\xf6\xf7\xf4\xf5\xcb\xce\xcd\xc3\xc1\xc7\xd8\xd9\xdf\xdc\xd3\xd3\xd7\x54\x51\x53\x5c\x5c\x5f\x5e\x58\x5a\x44"));
+snd($sock_a, $port_b, rtp(96, 2002, 4560, 0x5678, "\xf0\x1c\x41\x42\x00\xd9\xd7\x64\x3c\xb0\x51\xe7\x1f\x95\x56\x3b\x34\x76\x35\x73\x46\x32\x16\x72\x67\xc4\x54\x16\x02\x64\x30\x36\x34\x18\xba\x14\xce\xd8"));
+rcv($sock_b, $port_a, rtpm(8, 2001, 4160, $ssrc, "\x47\x47\x40\x43\x4c\x4f\x48\x49\x4f\x4d\x42\x42\x42\x43\x41\x41\x41\x40\x40\x40\x43\x4d\x4f\x49\x48\x75\x74\x74\x77\x77\x76\x76\x76\x76\x76\x71\x71\x70\x70\x70\x70\x70\x73\x72\x73\x72\x72\x72\x72\x73\x70\x70\x71\x71\x71\x71\x76\x76\x76\x77\x77\x77\x74\x74\x74\x75\x75\x4a\x4b\x48\x48\x4b\x4b\x4b\x48\x48\x48\x49\x49\x49\x49\x4f\x4f\x4c\x4c\x4d\x43\x40\x41\x46\x47\x45\x5a\x5b\x58\x59\x5e\x5f\x5c\x5d\x52\x52\x53\x53\x53\x53\x53\x53\x53\x50\x53\x50\x50\x51\x51\x51\x56\x56\x57\x54\x54\xd5\xd5\xd4\xd7\xd7\xd6\xd1\xd0\xd0\xd3\xd2\xdd\xdd\xdc\xdf\xdf\xde\xde\xd9\xd9\xd9\xd9\xd9\xd8\xd8\xd8\xd8\xd8\xd8\xd8\xd8\xd8\xd8\xd8\xd8\xd8\xd8\xd8\xd8"));
+snd($sock_a, $port_b, rtp(96, 2003, 4880, 0x5678, "\xf0\x1c\x41\x46\x30\xff\xf7\xfc\x31\x15\x57\x3b\x0a\x1e\x44\xcd\x5e\x0e\xa7\xe4\x3a\x1b\xb5\x7b\x38\x2a\x90\x13\x08\xf3\x5f\xaa\xba\x57\xb0\x30\xd3\xe8"));
+rcv($sock_b, $port_a, rtpm(8, 2002, 4320, $ssrc, "\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xde\xde\xde\xde\xde\xde\xde\xdf\xdf\xdf\xdf\xdf\xdf\xdc\xdc\xdc\xdc\xdd\xdd\xdd\xdd\xd2\xd2\xd2\xd2\xd2\xd2\xd3\xd3\xd3\xd3\xd3\xd0\xd0\xd0\xd0\xd0\xd0\xd1\xd1\xd1\xd1\xd1\xd6\xd6\xd6\xd6\xd6\xd6\xd6\xd6\xd7\xd7\xd7\xd7\xd7\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\x55\x55\x55\x55\x55\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54"));
+# no snd, trigger DTX
+rcv($sock_b, $port_a, rtpm(8, 2003, 4480, $ssrc, "\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x57\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x55\x55\x55\x55\x55\x55\x54\x54\x54\x54\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\xd5\xd5\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\xd5\xd5\xd5\xd5\x55\x55\x55\x55\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\x55\xd5"));
+rcv($sock_b, $port_a, rtpm(8, 2004, 4640, $ssrc, "\xd5\x55\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\x55\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\x55\x55\x55\x55\xd5\xd5\xd5\xd5\x55\xd5\x55\xd5\xd5\x55\xd5\x55\x55\x55\xd5\x55\x55\xd5\x55\x55\x55\x55\xd5\xd5\xd5\x55\xd5\x55\x55\xd5\xd5\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\xd5\x55\xd5\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55"));
+rcv($sock_b, $port_a, rtpm(8, 2005, 4800, $ssrc, "\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\xd5\x55\x55\x55\x55\xd5\x55\x55\x55\x55\xd5\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\xd5\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\xd5\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55"));
+# continue AMR
+snd($sock_a, $port_b, rtp(96, 2004, 6160, 0x5678, "\xf0\x1c\x41\x46\x30\xff\xf7\xfc\x31\x15\x57\x3b\x0a\x1e\x44\xcd\x5e\x0e\xa7\xe4\x3a\x1b\xb5\x7b\x38\x2a\x90\x13\x08\xf3\x5f\xaa\xba\x57\xb0\x30\xd3\xe8"));
+rcv($sock_b, $port_a, rtpm(8, 2006, 4960, $ssrc, "\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\xd5\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\xd5\xd5\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\xd5\xd5\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55"));
+snd($sock_a, $port_b, rtp(96, 2005, 6480, 0x5678, "\xf0\x1c\x41\x46\x30\xff\xf7\xfc\x31\x15\x57\x3b\x0a\x1e\x44\xcd\x5e\x0e\xa7\xe4\x3a\x1b\xb5\x7b\x38\x2a\x90\x13\x08\xf3\x5f\xaa\xba\x57\xb0\x30\xd3\xe8"));
+rcv($sock_b, $port_a, rtpm(8, 2007, 5120, $ssrc, "\xd5\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\xd5\xd5\xd5\x55\xd5\xd5\x55\xd5\x55\x55\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\x55\x55\x55\x55\x55\x55\x55\xd5\xd5\xd5\xd5\xd5\xd5\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\xd5\xd5\xd5\x55\xd5\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\xd5\xd5\xd5\xd5\x55\x55"));
+
+
+
+rtpe_req('delete', 'AMR SID', { 'from-tag' => ft() });
+
+
+
+($sock_a, $sock_b) = new_call([qw(198.51.100.10 4026)], [qw(198.51.100.10 4028)]);
+
+($port_a) = offer('AMR SID TS gap',
+	{ ICE => 'remove', replace => ['origin'], codec => { transcode => ['PCMA'],
+	'set' => ['AMR-WB/16000/1/23850'] } }, <<SDP);
+v=0
+o=- 1545997027 1 IN IP4 198.51.100.10
+s=tester
+t=0 0
+m=audio 4026 RTP/AVP 96
+c=IN IP4 198.51.100.10
+a=rtpmap:96 AMR-WB/16000
+a=fmtp:96 octet-align=1
+a=sendrecv
+----------------------------------
+v=0
+o=- 1545997027 1 IN IP4 203.0.113.1
+s=tester
+t=0 0
+m=audio PORT RTP/AVP 96 8
+c=IN IP4 203.0.113.1
+a=rtpmap:96 AMR-WB/16000
+a=rtpmap:8 PCMA/8000
+a=fmtp:96 octet-align=1
+a=sendrecv
+a=rtcp:PORT
+SDP
+
+($port_b) = answer('AMR-WB -> PCM CMR',
+	{ ICE => 'remove', replace => ['origin'] }, <<SDP);
+v=0
+o=- 1545997027 1 IN IP4 198.51.100.10
+s=tester
+t=0 0
+m=audio 4028 RTP/AVP 8
+c=IN IP4 198.51.100.10
+a=sendrecv
+--------------------------------------
+v=0
+o=- 1545997027 1 IN IP4 203.0.113.1
+s=tester
+t=0 0
+m=audio PORT RTP/AVP 96
+c=IN IP4 203.0.113.1
+a=rtpmap:96 AMR-WB/16000
+a=fmtp:96 octet-align=1
+a=sendrecv
+a=rtcp:PORT
+SDP
+
+snd($sock_a, $port_b, rtp(96, 2000, 4000, 0x5678, "\xf0\x1c\xd0\x46\x09\xa1\xf1\x73\x02\x71\x71\x00\x0a\x16\x87\x74\xea\x6a\x8c\x06\x67\x66\xec\xf5\x67\x6c\x54\x6d\x45\x4c\x7c\x59\x8d\x7c\x55\xc4\x6c\x50"));
+Time::HiRes::usleep(20000); # 20 ms
+snd($sock_a, $port_b, rtp(96, 2001, 4240, 0x5678, "\xf0\x1c\xe0\x92\x30\xf3\xf4\xff\x3d\x23\xdb\x6b\x59\x4f\xd5\x12\xad\xff\x5b\xf8\x88\x53\x85\x74\x19\x6d\x65\x63\x6e\x94\xbb\x5b\x9f\x7d\x97\x3c\x28\xe8"));
+($ssrc) = rcv($sock_b, $port_a, rtpm(8, 2000, 4000, -1, "\xd5\xd5\xd5\xd5\xd5\xd5\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\xd5\x55\xd4\xd4\xd7\xd4\xd7\xd5\xd0\x52\x72\x64\x66\x66\x66\x66\x67\x67\x67\x65\x7a\x79\x7c\x72\x70\x77\x75\x4e\x43\x47\x5b\x5c\x5d\x55\x5d\x71\x7e\x7b\x79\x7e\x7c\x7d\x73\x70\x77\x4b\x4c\x45\xc1\xf0\xf1\xfd\xf8\xfa\xe5\xe7\xe6\xe6\xe1\xe6\xe0\xe0\xe1\xe0\xe3\xe2\xe2\xe2\xed\xec\xef\xec\xec\xec\xed\xe2\xe3\xe3\xe1\xe1\xe7\xe7\xe7\xe5\xe5\xfa\xfa\xfb\xfb\xfb\xff\xfc\xf2\xf3\xf1\xf6\xf7\xf4\xf5\xcb\xce\xcd\xc3\xc1\xc7\xd8\xd9\xdf\xdc\xd3\xd3\xd7\x54\x51\x53\x5c\x5c\x5f\x5e\x58\x5a\x44"));
+snd($sock_a, $port_b, rtp(96, 2002, 4560, 0x5678, "\xf0\x1c\x41\x42\x00\xd9\xd7\x64\x3c\xb0\x51\xe7\x1f\x95\x56\x3b\x34\x76\x35\x73\x46\x32\x16\x72\x67\xc4\x54\x16\x02\x64\x30\x36\x34\x18\xba\x14\xce\xd8"));
+rcv($sock_b, $port_a, rtpm(8, 2001, 4160, $ssrc, "\x47\x47\x40\x43\x4c\x4f\x48\x49\x4f\x4d\x42\x42\x42\x43\x41\x41\x41\x40\x40\x40\x43\x4d\x4f\x49\x48\x75\x74\x74\x77\x77\x76\x76\x76\x76\x76\x71\x71\x70\x70\x70\x70\x70\x73\x72\x73\x72\x72\x72\x72\x73\x70\x70\x71\x71\x71\x71\x76\x76\x76\x77\x77\x77\x74\x74\x74\x75\x75\x4a\x4b\x48\x48\x4b\x4b\x4b\x48\x48\x48\x49\x49\x49\x49\x4f\x4f\x4c\x4c\x4d\x43\x40\x41\x46\x47\x45\x5a\x5b\x58\x59\x5e\x5f\x5c\x5d\x52\x52\x53\x53\x53\x53\x53\x53\x53\x50\x53\x50\x50\x51\x51\x51\x56\x56\x57\x54\x54\xd5\xd5\xd4\xd7\xd7\xd6\xd1\xd0\xd0\xd3\xd2\xdd\xdd\xdc\xdf\xdf\xde\xde\xd9\xd9\xd9\xd9\xd9\xd8\xd8\xd8\xd8\xd8\xd8\xd8\xd8\xd8\xd8\xd8\xd8\xd8\xd8\xd8\xd8"));
+snd($sock_a, $port_b, rtp(96, 2003, 4880, 0x5678, "\xf0\x1c\x41\x46\x30\xff\xf7\xfc\x31\x15\x57\x3b\x0a\x1e\x44\xcd\x5e\x0e\xa7\xe4\x3a\x1b\xb5\x7b\x38\x2a\x90\x13\x08\xf3\x5f\xaa\xba\x57\xb0\x30\xd3\xe8"));
+rcv($sock_b, $port_a, rtpm(8, 2002, 4320, $ssrc, "\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xd9\xde\xde\xde\xde\xde\xde\xde\xdf\xdf\xdf\xdf\xdf\xdf\xdc\xdc\xdc\xdc\xdd\xdd\xdd\xdd\xd2\xd2\xd2\xd2\xd2\xd2\xd3\xd3\xd3\xd3\xd3\xd0\xd0\xd0\xd0\xd0\xd0\xd1\xd1\xd1\xd1\xd1\xd6\xd6\xd6\xd6\xd6\xd6\xd6\xd6\xd7\xd7\xd7\xd7\xd7\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd4\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\x55\x55\x55\x55\x55\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54"));
+# no snd, trigger DTX
+rcv($sock_b, $port_a, rtpm(8, 2003, 4480, $ssrc, "\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x57\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x54\x55\x55\x55\x55\x55\x55\x54\x54\x54\x54\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\xd5\xd5\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\xd5\xd5\xd5\xd5\x55\x55\x55\x55\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\x55\xd5"));
+rcv($sock_b, $port_a, rtpm(8, 2004, 4640, $ssrc, "\xd5\x55\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\x55\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\x55\x55\x55\x55\xd5\xd5\xd5\xd5\x55\xd5\x55\xd5\xd5\x55\xd5\x55\x55\x55\xd5\x55\x55\xd5\x55\x55\x55\x55\xd5\xd5\xd5\x55\xd5\x55\x55\xd5\xd5\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\xd5\x55\xd5\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55"));
+rcv($sock_b, $port_a, rtpm(8, 2005, 4800, $ssrc, "\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\xd5\x55\x55\x55\x55\xd5\x55\x55\x55\x55\xd5\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\xd5\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\xd5\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55"));
+# continue AMR
+snd($sock_a, $port_b, rtp(96, 2004, 5200, 0x5678, "\xf0\x1c\x41\x46\x30\xff\xf7\xfc\x31\x15\x57\x3b\x0a\x1e\x44\xcd\x5e\x0e\xa7\xe4\x3a\x1b\xb5\x7b\x38\x2a\x90\x13\x08\xf3\x5f\xaa\xba\x57\xb0\x30\xd3\xe8"));
+rcv($sock_b, $port_a, rtpm(8, 2006, 4960, $ssrc, "\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\xd5\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\xd5\xd5\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\xd5\xd5\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55"));
+snd($sock_a, $port_b, rtp(96, 2005, 5520, 0x5678, "\xf0\x1c\x41\x46\x30\xff\xf7\xfc\x31\x15\x57\x3b\x0a\x1e\x44\xcd\x5e\x0e\xa7\xe4\x3a\x1b\xb5\x7b\x38\x2a\x90\x13\x08\xf3\x5f\xaa\xba\x57\xb0\x30\xd3\xe8"));
+rcv($sock_b, $port_a, rtpm(8, 2007, 5120, $ssrc, "\xd5\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\xd5\xd5\xd5\x55\xd5\xd5\x55\xd5\x55\x55\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\xd5\x55\x55\x55\x55\x55\x55\x55\xd5\xd5\xd5\xd5\xd5\xd5\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\x55\xd5\xd5\xd5\x55\xd5\xd5\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\x55\xd5\xd5\xd5\xd5\xd5\x55\x55"));
+
+
+
+rtpe_req('delete', 'AMR SID', { 'from-tag' => ft() });
+
+
+
+
+done_testing;
+exit;
+
+
+}
+
+
+
+
+if (0) {
+
+# GH 1098
+
+new_call;
+
+offer('gh 1098', {
+	codec => {
+		mask => ['all'],
+		transcode => ['G722', 'AMR-WB/16000/1///mode-set--0,1,2;mode-change-period--2;mode-change-capability--2/dtx--1', 'AMR', 'PCMA', 'telephone-event'],
+	}
+}, <<SDP);
+v=0
+o=- 3812713289 3812713289 IN IP4 foo.bar.com
+s=-
+c=IN IP4 1.1.1.1
+t=0 0
+m=audio 40732 RTP/AVP 111 108 8 101 96
+a=ptime:20
+a=rtpmap:111 AMR-WB/16000
+a=fmtp:111 mode-set=0,1,2; mode-change-period=2; mode-change-capability=2
+a=rtpmap:108 AMR/8000
+a=fmtp:108 mode-set=7
+a=rtpmap:8 PCMA/8000
+a=rtpmap:101 telephone-event/16000
+a=rtpmap:96 telephone-event/8000
+a=fmtp:96 0-15
+a=fmtp:101 0-15
+----------------------------------
+v=0
+o=- 3812713289 3812713289 IN IP4 foo.bar.com
+s=-
+c=IN IP4 203.0.113.1
+t=0 0
+m=audio PORT RTP/AVP 9 96 108 8 101 96
+a=rtpmap:9 G722/8000
+a=rtpmap:96 AMR-WB/16000
+a=rtpmap:108 AMR/8000
+a=rtpmap:8 PCMA/8000
+a=rtpmap:101 telephone-event/16000
+a=rtpmap:96 telephone-event/8000
+a=fmtp:96 mode-set=0,1,2;mode-change-period=2;mode-change-capability=2
+a=fmtp:108 mode-set=7
+a=fmtp:101 0-15
+a=fmtp:96 0-15
+a=sendrecv
+a=rtcp:PORT
+a=ptime:20
+SDP
+
+answer('gh 1098', {
+	flags => ['single-codec'],
+}, <<SDP);
+v=0
+o=FreeSWITCH 1603706241 1603706242 IN IP4 3.3.3.3
+s=FreeSWITCH
+c=IN IP4 3.3.3.3
+t=0 0
+m=audio 18248 RTP/AVP 9 96
+a=rtpmap:9 G722/8000
+a=rtpmap:96 telephone-event/8000
+a=fmtp:96 0-16
+a=silenceSupp:off - - - -
+a=ptime:20
+a=rtcp:18249 IN IP4 3.3.3.3
+----------------------------------
+v=0
+o=FreeSWITCH 1603706241 1603706242 IN IP4 3.3.3.3
+s=FreeSWITCH
+c=IN IP4 203.0.113.1
+t=0 0
+m=audio PORT RTP/AVP 111 101
+a=silenceSupp:off - - - -
+a=rtpmap:111 AMR-WB/16000
+a=rtpmap:101 telephone-event/16000
+a=fmtp:111 mode-set=0,1,2; mode-change-period=2; mode-change-capability=2
+a=fmtp:101 0-15
+a=sendrecv
+a=rtcp:PORT
+a=ptime:20
+SDP
+
+
+new_call;
+
+offer('gh 1098', {
+	codec => {
+		mask => ['all'],
+		transcode => ['G722', 'AMR-WB/16000/1///mode-set--0,1,2;mode-change-period--2;mode-change-capability--2/dtx--1', 'AMR', 'PCMA', 'telephone-event'],
+	}
+}, <<SDP);
+v=0
+o=- 3812713289 3812713289 IN IP4 foo.bar.com
+s=-
+c=IN IP4 1.1.1.1
+t=0 0
+m=audio 40732 RTP/AVP 111 108 8 101 96
+a=ptime:20
+a=rtpmap:111 AMR-WB/16000
+a=fmtp:111 mode-set=0,1,2; mode-change-period=2; mode-change-capability=2
+a=rtpmap:108 AMR/8000
+a=fmtp:108 mode-set=7
+a=rtpmap:8 PCMA/8000
+a=rtpmap:101 telephone-event/16000
+a=rtpmap:96 telephone-event/8000
+a=fmtp:96 0-15
+a=fmtp:101 0-15
+----------------------------------
+v=0
+o=- 3812713289 3812713289 IN IP4 foo.bar.com
+s=-
+c=IN IP4 203.0.113.1
+t=0 0
+m=audio PORT RTP/AVP 9 96 108 8 101 96
+a=rtpmap:9 G722/8000
+a=rtpmap:96 AMR-WB/16000
+a=rtpmap:108 AMR/8000
+a=rtpmap:8 PCMA/8000
+a=rtpmap:101 telephone-event/16000
+a=rtpmap:96 telephone-event/8000
+a=fmtp:96 mode-set=0,1,2;mode-change-period=2;mode-change-capability=2
+a=fmtp:108 mode-set=7
+a=fmtp:101 0-15
+a=fmtp:96 0-15
+a=sendrecv
+a=rtcp:PORT
+a=ptime:20
+SDP
+
+answer('gh 1098', {
+	codec => {
+		strip => ['all'],
+		offer => ['PCMA'],
+	}
+}, <<SDP);
+v=0
+o=FreeSWITCH 1603707514 1603707515 IN IP4 3.3.3.3
+s=FreeSWITCH
+c=IN IP4 3.3.3.3
+t=0 0
+m=audio 17766 RTP/AVP 8 96
+a=rtpmap:8 PCMA/8000
+a=rtpmap:96 telephone-event/8000
+a=fmtp:96 0-16
+a=silenceSupp:off - - - -
+a=ptime:20
+a=rtcp:17767 IN IP4 3.3.3.3
+----------------------------------
+v=0
+o=FreeSWITCH 1603707514 1603707515 IN IP4 3.3.3.3
+s=FreeSWITCH
+c=IN IP4 203.0.113.1
+t=0 0
+m=audio PORT RTP/AVP 8
+a=silenceSupp:off - - - -
+a=rtpmap:8 PCMA/8000
+a=sendrecv
+a=rtcp:PORT
+a=ptime:20
+SDP
+
+
+
+new_call;
+
+offer('gh 1098', {
+	codec => {
+		mask => ['all'],
+		transcode => ['G722', 'AMR-WB/16000/1///mode-set--0,1,2;mode-change-period--2;mode-change-capability--2/dtx--1', 'AMR', 'PCMA', 'telephone-event'],
+	}
+}, <<SDP);
+v=0
+o=- 3812713289 3812713289 IN IP4 foo.bar.com
+s=-
+c=IN IP4 1.1.1.1
+t=0 0
+m=audio 40732 RTP/AVP 111 108 8 101 96
+a=ptime:20
+a=rtpmap:111 AMR-WB/16000
+a=fmtp:111 mode-set=0,1,2; mode-change-period=2; mode-change-capability=2
+a=rtpmap:108 AMR/8000
+a=fmtp:108 mode-set=7
+a=rtpmap:8 PCMA/8000
+a=rtpmap:101 telephone-event/16000
+a=rtpmap:96 telephone-event/8000
+a=fmtp:96 0-15
+a=fmtp:101 0-15
+----------------------------------
+v=0
+o=- 3812713289 3812713289 IN IP4 foo.bar.com
+s=-
+c=IN IP4 203.0.113.1
+t=0 0
+m=audio PORT RTP/AVP 9 96 108 8 101 96
+a=rtpmap:9 G722/8000
+a=rtpmap:96 AMR-WB/16000
+a=rtpmap:108 AMR/8000
+a=rtpmap:8 PCMA/8000
+a=rtpmap:101 telephone-event/16000
+a=rtpmap:96 telephone-event/8000
+a=fmtp:96 mode-set=0,1,2;mode-change-period=2;mode-change-capability=2
+a=fmtp:108 mode-set=7
+a=fmtp:101 0-15
+a=fmtp:96 0-15
+a=sendrecv
+a=rtcp:PORT
+a=ptime:20
+SDP
+
+answer('gh 1098', {
+	codec => {
+		strip => ['all'],
+		offer => ['PCMA', 'telephone-event'],
+	}
+}, <<SDP);
+v=0
+o=FreeSWITCH 1603707514 1603707515 IN IP4 3.3.3.3
+s=FreeSWITCH
+c=IN IP4 3.3.3.3
+t=0 0
+m=audio 17766 RTP/AVP 8 96
+a=rtpmap:8 PCMA/8000
+a=rtpmap:96 telephone-event/8000
+a=fmtp:96 0-16
+a=silenceSupp:off - - - -
+a=ptime:20
+a=rtcp:17767 IN IP4 3.3.3.3
+----------------------------------
+v=0
+o=FreeSWITCH 1603707514 1603707515 IN IP4 3.3.3.3
+s=FreeSWITCH
+c=IN IP4 203.0.113.1
+t=0 0
+m=audio PORT RTP/AVP 8 96
+a=silenceSupp:off - - - -
+a=rtpmap:8 PCMA/8000
+a=rtpmap:96 telephone-event/8000
+a=fmtp:96 0-16
+a=sendrecv
+a=rtcp:PORT
+a=ptime:20
+SDP
+
+}
+
+
+
+
+
+# inject DTMF with mismatched codecs
+
+($sock_a, $sock_b) = new_call([qw(198.51.100.11 3000)], [qw(198.51.100.11 3002)]);
+
+($port_a) = offer('inject, U/A offer',
+	{ ICE => 'remove', replace => ['origin'], flags => [qw(inject-DTMF)] }, <<SDP);
+v=0
+o=- 1545997027 1 IN IP4 198.51.100.11
+s=tester
+t=0 0
+m=audio 3000 RTP/AVP 0 8 101
+c=IN IP4 198.51.100.11
+a=sendrecv
+a=rtpmap:101 telephone-event/8000
+----------------------------------
+v=0
+o=- 1545997027 1 IN IP4 203.0.113.1
+s=tester
+t=0 0
+m=audio PORT RTP/AVP 0 8 101
+c=IN IP4 203.0.113.1
+a=rtpmap:0 PCMU/8000
+a=rtpmap:8 PCMA/8000
+a=rtpmap:101 telephone-event/8000
+a=sendrecv
+a=rtcp:PORT
+SDP
+
+($port_b) = answer('inject, A/U offer',
+	{ ICE => 'remove', replace => ['origin'], flags => [qw(inject-DTMF)] }, <<SDP);
+v=0
+o=- 1545997027 1 IN IP4 198.51.100.11
+s=tester
+t=0 0
+m=audio 3002 RTP/AVP 8 0 101
+c=IN IP4 198.51.100.11
+a=sendrecv
+a=rtpmap:101 telephone-event/8000
+----------------------------------
+v=0
+o=- 1545997027 1 IN IP4 203.0.113.1
+s=tester
+t=0 0
+m=audio PORT RTP/AVP 8 0 101
+c=IN IP4 203.0.113.1
+a=rtpmap:8 PCMA/8000
+a=rtpmap:0 PCMU/8000
+a=rtpmap:101 telephone-event/8000
+a=sendrecv
+a=rtcp:PORT
+SDP
+
+snd($sock_a, $port_b, rtp(8, 1000, 3000, 0x1234, "\x00" x 160));
+rcv($sock_b, $port_a, rtpm(8, 1000, 3000, -1, "\x00" x 160));
+snd($sock_b, $port_a, rtp(8, 2000, 4000, 0x3210, "\x00" x 160));
+rcv($sock_a, $port_b, rtpm(8, 2000, 4000, -1, "\x00" x 160));
+
+snd($sock_a, $port_b, rtp(0, 4000, 6000, 0x21d4, "\x00" x 160));
+rcv($sock_b, $port_a, rtpm(0, 4000, 6000, -1, "\x00" x 160));
+snd($sock_b, $port_a, rtp(0, 5000, 7000, 0x41b0, "\x00" x 160));
+rcv($sock_a, $port_b, rtpm(0, 5000, 7000, -1, "\x00" x 160));
+
+
+
+
+
+if (0) {
+
 # AMR-WB mode tests
 
 ($sock_a, $sock_b) = new_call([qw(198.51.100.10 3000)], [qw(198.51.100.10 3002)]);
@@ -1044,6 +1521,74 @@ rcv($sock_a, $port_b, rtpm(96, 1004, 4200, $ssrc, "\xf0\x14\x41\x00\x30\x44\x41\
 }
 
 
+
+
+new_call;
+
+offer('DTMF-inject w tp-e', {
+		ICE => 'remove',
+		flags => ['inject-DTMF'],
+		codec => {transcode => ['G722']},
+	}, <<SDP);
+v=0
+o=Z 58440449 0 IN IP4 89.225.243.254
+s=Z
+c=IN IP4 89.225.243.254
+t=0 0
+m=audio 8000 RTP/AVP 0 8 9 101
+a=rtpmap:0 PCMU/8000
+a=rtpmap:8 PCMA/8000
+a=rtpmap:9 G722/8000
+a=rtpmap:101 telephone-event/8000
+a=fmtp:101 0-15
+a=sendrecv
+--------------------------------------
+v=0
+o=Z 58440449 0 IN IP4 89.225.243.254
+s=Z
+c=IN IP4 203.0.113.1
+t=0 0
+m=audio PORT RTP/AVP 0 8 9 101
+a=rtpmap:0 PCMU/8000
+a=rtpmap:8 PCMA/8000
+a=rtpmap:9 G722/8000
+a=rtpmap:101 telephone-event/8000
+a=fmtp:101 0-15
+a=sendrecv
+a=rtcp:PORT
+SDP
+
+answer('DTMF-inject w tp-e', {
+		ICE => 'remove',
+		flags => ['inject-DTMF'],
+	}, <<SDP);
+v=0
+o=Z 58440449 0 IN IP4 89.225.243.254
+s=Z
+c=IN IP4 89.225.243.254
+t=0 0
+m=audio 8000 RTP/AVP 8 0 101
+a=rtpmap:8 PCMA/8000
+a=rtpmap:0 PCMU/8000
+a=rtpmap:101 telephone-event/8000
+a=fmtp:101 0-15
+a=sendrecv
+--------------------------------------
+v=0
+o=Z 58440449 0 IN IP4 89.225.243.254
+s=Z
+c=IN IP4 203.0.113.1
+t=0 0
+m=audio PORT RTP/AVP 8 0 101
+a=rtpmap:8 PCMA/8000
+a=rtpmap:0 PCMU/8000
+a=rtpmap:101 telephone-event/8000
+a=fmtp:101 0-15
+a=sendrecv
+a=rtcp:PORT
+SDP
+
+
 new_call;
 
 offer('symmetric codecs w missing answer codec, no flag', {
@@ -1361,6 +1906,129 @@ SDP
 
 new_call;
 
+offer('multi codec offer/answer w single-codec and tp-event', {
+		ICE => 'remove',
+		flags => [],
+		codec => {transcode => ['opus']},
+	}, <<SDP);
+v=0
+o=Z 58440449 0 IN IP4 89.225.243.254
+s=Z
+c=IN IP4 89.225.243.254
+t=0 0
+m=audio 8000 RTP/AVP 0 8 101
+a=rtpmap:101 telephone-event/8000
+a=sendrecv
+--------------------------------------
+v=0
+o=Z 58440449 0 IN IP4 89.225.243.254
+s=Z
+c=IN IP4 203.0.113.1
+t=0 0
+m=audio PORT RTP/AVP 0 8 96 101 97
+a=rtpmap:0 PCMU/8000
+a=rtpmap:8 PCMA/8000
+a=rtpmap:96 opus/48000/2
+a=rtpmap:101 telephone-event/8000
+a=rtpmap:97 telephone-event/48000
+a=fmtp:97 0-15
+a=sendrecv
+a=rtcp:PORT
+SDP
+
+answer('multi codec offer/answer', {
+		ICE => 'remove',
+		flags => ['single codec'],
+	}, <<SDP);
+v=0
+o=Z 58440449 0 IN IP4 89.225.243.254
+s=Z
+c=IN IP4 89.225.243.254
+t=0 0
+m=audio 8000 RTP/AVP 0 8 96 101 97
+a=rtpmap:96 opus/48000/2
+a=rtpmap:101 telephone-event/8000
+a=rtpmap:97 telephone-event/48000
+a=sendrecv
+--------------------------------------
+v=0
+o=Z 58440449 0 IN IP4 89.225.243.254
+s=Z
+c=IN IP4 203.0.113.1
+t=0 0
+m=audio PORT RTP/AVP 0 101
+a=rtpmap:0 PCMU/8000
+a=rtpmap:101 telephone-event/8000
+a=sendrecv
+a=rtcp:PORT
+SDP
+
+
+
+new_call;
+
+offer('multi codec offer/answer w single-codec and tp-event', {
+		ICE => 'remove',
+		flags => [],
+		codec => {mask => ['all'], transcode => ['opus/48000/1', 'PCMA', 'telephone-event']},
+	}, <<SDP);
+v=0
+o=Z 58440449 0 IN IP4 89.225.243.254
+s=Z
+c=IN IP4 89.225.243.254
+t=0 0
+m=audio 8000 RTP/AVP 96 8 102 101
+a=rtpmap:96 opus/48000/2
+a=rtpmap:102 telephone-event/48000
+a=rtpmap:101 telephone-event/8000
+a=sendrecv
+--------------------------------------
+v=0
+o=Z 58440449 0 IN IP4 89.225.243.254
+s=Z
+c=IN IP4 203.0.113.1
+t=0 0
+m=audio PORT RTP/AVP 96 8 102 101
+a=rtpmap:96 opus/48000
+a=rtpmap:8 PCMA/8000
+a=rtpmap:102 telephone-event/48000
+a=rtpmap:101 telephone-event/8000
+a=sendrecv
+a=rtcp:PORT
+SDP
+
+answer('multi codec offer/answer', {
+		ICE => 'remove',
+		flags => ['single codec'],
+	}, <<SDP);
+v=0
+o=Z 58440449 0 IN IP4 89.225.243.254
+s=Z
+c=IN IP4 89.225.243.254
+t=0 0
+m=audio 8000 RTP/AVP 96 97
+a=rtpmap:96 opus/48000
+a=rtpmap:97 telephone-event/48000
+a=sendrecv
+--------------------------------------
+v=0
+o=Z 58440449 0 IN IP4 89.225.243.254
+s=Z
+c=IN IP4 203.0.113.1
+t=0 0
+m=audio PORT RTP/AVP 96 102
+a=rtpmap:96 opus/48000/2
+a=rtpmap:102 telephone-event/48000
+a=sendrecv
+a=rtcp:PORT
+SDP
+
+
+
+
+
+new_call;
+
 offer('add transcode w supp codec', {
 		ICE => 'remove',
 		flags => [],
@@ -1389,6 +2057,115 @@ a=fmtp:101 0-16
 a=sendrecv
 a=rtcp:PORT
 SDP
+
+
+
+
+
+new_call;
+
+offer('fingerprint selection', {
+		ICE => 'remove',
+		flags => [],
+		'transport-protocol' => 'RTP/SAVP',
+		SDES => ['off'],
+	}, <<SDP);
+v=0
+o=Z 58440449 0 IN IP4 89.225.243.254
+s=Z
+c=IN IP4 89.225.243.254
+t=0 0
+m=audio 8000 RTP/AVP 0 101 8
+a=rtpmap:101 telephone-event/8000
+a=fmtp:101 0-16
+a=sendrecv
+--------------------------------------
+v=0
+o=Z 58440449 0 IN IP4 89.225.243.254
+s=Z
+c=IN IP4 203.0.113.1
+t=0 0
+m=audio PORT RTP/SAVP 0 101 8
+a=rtpmap:0 PCMU/8000
+a=rtpmap:101 telephone-event/8000
+a=rtpmap:8 PCMA/8000
+a=fmtp:101 0-16
+a=sendrecv
+a=rtcp:PORT
+a=setup:actpass
+a=fingerprint:sha-1 FINGERPRINT
+SDP
+
+new_call;
+
+offer('fingerprint selection', {
+		ICE => 'remove',
+		flags => [],
+		'transport-protocol' => 'RTP/SAVP',
+		SDES => ['off'],
+		'DTLS-fingerprint' => 'SHA-256',
+	}, <<SDP);
+v=0
+o=Z 58440449 0 IN IP4 89.225.243.254
+s=Z
+c=IN IP4 89.225.243.254
+t=0 0
+m=audio 8000 RTP/AVP 0 101 8
+a=rtpmap:101 telephone-event/8000
+a=fmtp:101 0-16
+a=sendrecv
+--------------------------------------
+v=0
+o=Z 58440449 0 IN IP4 89.225.243.254
+s=Z
+c=IN IP4 203.0.113.1
+t=0 0
+m=audio PORT RTP/SAVP 0 101 8
+a=rtpmap:0 PCMU/8000
+a=rtpmap:101 telephone-event/8000
+a=rtpmap:8 PCMA/8000
+a=fmtp:101 0-16
+a=sendrecv
+a=rtcp:PORT
+a=setup:actpass
+a=fingerprint:sha-256 FINGERPRINT256
+SDP
+
+new_call;
+
+offer('fingerprint selection', {
+		ICE => 'remove',
+		flags => [],
+		'transport-protocol' => 'RTP/SAVP',
+		SDES => ['off'],
+		'DTLS-fingerprint' => 'sha-256',
+	}, <<SDP);
+v=0
+o=Z 58440449 0 IN IP4 89.225.243.254
+s=Z
+c=IN IP4 89.225.243.254
+t=0 0
+m=audio 8000 RTP/AVP 0 101 8
+a=rtpmap:101 telephone-event/8000
+a=fmtp:101 0-16
+a=sendrecv
+--------------------------------------
+v=0
+o=Z 58440449 0 IN IP4 89.225.243.254
+s=Z
+c=IN IP4 203.0.113.1
+t=0 0
+m=audio PORT RTP/SAVP 0 101 8
+a=rtpmap:0 PCMU/8000
+a=rtpmap:101 telephone-event/8000
+a=rtpmap:8 PCMA/8000
+a=fmtp:101 0-16
+a=sendrecv
+a=rtcp:PORT
+a=setup:actpass
+a=fingerprint:sha-256 FINGERPRINT256
+SDP
+
 
 
 
@@ -1776,12 +2553,12 @@ o=dev 5418 9648 IN IP4 8.8.8.60
 s=SIP Call
 c=IN IP4 8.8.8.60
 t=0 0
-m=audio PORT RTP/AVP 101 0 8 3
+m=audio PORT RTP/AVP 0 8 3 101
 c=IN IP4 203.0.113.1
-a=rtpmap:101 telephone-event/8000
 a=rtpmap:0 PCMU/8000
 a=rtpmap:8 PCMA/8000
 a=rtpmap:3 GSM/8000
+a=rtpmap:101 telephone-event/8000
 a=fmtp:101 0-15
 a=sendrecv
 a=rtcp:PORT
@@ -1872,7 +2649,7 @@ a=rtpmap:0 PCMU/8000
 a=sendrecv
 a=rtcp:PORT
 a=setup:active
-a=fingerprint:sha-1 FINGERPRINT
+a=fingerprint:sha-256 FINGERPRINT256
 SDP
 
 
@@ -1925,7 +2702,7 @@ a=rtpmap:0 PCMU/8000
 a=sendrecv
 a=rtcp:PORT
 a=setup:passive
-a=fingerprint:sha-1 FINGERPRINT
+a=fingerprint:sha-256 FINGERPRINT256
 SDP
 
 
@@ -2575,12 +3352,10 @@ o=- 1545997027 1 IN IP4 203.0.113.1
 s=tester
 c=IN IP4 203.0.113.1
 t=0 0
-m=audio PORT RTP/SAVP 0 8 9 101
+m=audio PORT RTP/SAVP 0 101
 a=silenceSupp:off - - - -
 a=mptime:20 20 20 20 -
 a=rtpmap:0 PCMU/8000
-a=rtpmap:8 PCMA/8000
-a=rtpmap:9 G722/8000
 a=rtpmap:101 telephone-event/8000
 a=fmtp:101 0-15
 a=sendrecv
@@ -3900,13 +4675,13 @@ s=pjmedia
 b=AS:117
 t=0 0
 a=X-nat:0
-m=audio PORT RTP/AVP 107 101 8
+m=audio PORT RTP/AVP 107 8 101
 c=IN IP4 203.0.113.1
 b=TIAS:96000
 a=ssrc:243811319 cname:04389d431bdd5c52
 a=rtpmap:107 opus/48000/2
-a=rtpmap:101 telephone-event/8000
 a=rtpmap:8 PCMA/8000
+a=rtpmap:101 telephone-event/8000
 a=fmtp:107 useinbandfec=1
 a=fmtp:101 0-16
 a=sendrecv
@@ -3972,14 +4747,16 @@ s=pjmedia
 b=AS:117
 t=0 0
 a=X-nat:0
-m=audio PORT RTP/AVP 8 107 101
+m=audio PORT RTP/AVP 8 107 101 96
 c=IN IP4 203.0.113.1
 b=TIAS:96000
 a=ssrc:243811319 cname:04389d431bdd5c52
 a=rtpmap:8 PCMA/8000
 a=rtpmap:107 opus/48000/2
 a=rtpmap:101 telephone-event/8000
+a=rtpmap:96 telephone-event/48000
 a=fmtp:101 0-16
+a=fmtp:96 0-15
 a=sendrecv
 a=rtcp:PORT
 a=ptime:20
@@ -4042,14 +4819,16 @@ s=pjmedia
 b=AS:117
 t=0 0
 a=X-nat:0
-m=audio PORT RTP/AVP 8 107 101
+m=audio PORT RTP/AVP 8 107 101 96
 c=IN IP4 203.0.113.1
 b=TIAS:96000
 a=ssrc:243811319 cname:04389d431bdd5c52
 a=rtpmap:8 PCMA/8000
 a=rtpmap:107 opus/48000/2
 a=rtpmap:101 telephone-event/8000
+a=rtpmap:96 telephone-event/48000
 a=fmtp:101 0-16
+a=fmtp:96 0-15
 a=sendrecv
 a=rtcp:PORT
 a=ptime:20
@@ -5787,7 +6566,49 @@ SDP
 
 new_call;
 
-offer('plain SDP, add default ICE', { }, <<SDP);
+offer('plain SDP, ICE default', { ICE => 'default' }, <<SDP);
+v=0
+o=- 1545997027 1 IN IP4 198.51.100.1
+s=tester
+t=0 0
+m=audio 2000 RTP/AVP 0
+c=IN IP4 198.51.100.1
+a=sendrecv
+----------------------------------
+v=0
+o=- 1545997027 1 IN IP4 198.51.100.1
+s=tester
+t=0 0
+m=audio PORT RTP/AVP 0
+c=IN IP4 203.0.113.1
+a=rtpmap:0 PCMU/8000
+a=sendrecv
+a=rtcp:PORT
+SDP
+
+answer('plain SDP, ICE default', { ICE => 'default' }, <<SDP);
+v=0
+o=- 1545997027 1 IN IP4 198.51.100.3
+s=tester
+t=0 0
+m=audio 2002 RTP/AVP 0
+c=IN IP4 198.51.100.3
+a=sendrecv
+--------------------------------------
+v=0
+o=- 1545997027 1 IN IP4 198.51.100.3
+s=tester
+t=0 0
+m=audio PORT RTP/AVP 0
+c=IN IP4 203.0.113.1
+a=rtpmap:0 PCMU/8000
+a=sendrecv
+a=rtcp:PORT
+SDP
+
+new_call;
+
+offer('plain SDP, add default ICE', { ICE => 'optional' }, <<SDP);
 v=0
 o=- 1545997027 1 IN IP4 198.51.100.1
 s=tester
@@ -5855,7 +6676,7 @@ a=sendrecv
 a=rtcp:PORT
 SDP
 
-answer('plain SDP, no ICE option given', { }, <<SDP);
+answer('plain SDP, no ICE option given', { ICE => 'optional' }, <<SDP);
 v=0
 o=- 1545997027 1 IN IP4 198.51.100.3
 s=tester
@@ -5878,7 +6699,7 @@ SDP
 new_call;
 
 offer('ICE SDP, default ICE option w media-address', { 'media-address' => '3.4.5.6',
-	flags => ['full-rtcp-attribute'], }, <<SDP);
+	flags => ['full-rtcp-attribute'], ICE => 'optional', }, <<SDP);
 v=0
 o=- 1545997027 1 IN IP4 198.51.100.1
 s=tester
@@ -5916,7 +6737,7 @@ SDP
 
 new_call;
 
-offer('ICE SDP, default ICE option', { }, <<SDP);
+offer('ICE SDP, default ICE option', { ICE => 'optional' }, <<SDP);
 v=0
 o=- 1545997027 1 IN IP4 198.51.100.1
 s=tester
@@ -5952,7 +6773,7 @@ a=candidate:ICEBASE 2 UDP 2097152254 203.0.113.1 PORT typ host
 a=candidate:ICEBASE 2 UDP 4294967294 2001:db8:4321::1 PORT typ host
 SDP
 
-answer('plain SDP, ICE rejected, no ICE option given', { }, <<SDP);
+answer('plain SDP, ICE rejected, no ICE option given', { ICE => 'optional' }, <<SDP);
 v=0
 o=- 1545997027 1 IN IP4 198.51.100.3
 s=tester
@@ -6006,7 +6827,7 @@ a=candidate:ICEBASE 2 UDP 2130706430 203.0.113.1 PORT typ host
 a=candidate:ICEBASE 2 UDP 2130706174 2001:db8:4321::1 PORT typ host
 SDP
 
-answer('plain SDP, ICE rejected, no ICE option given', { }, <<SDP);
+answer('plain SDP, ICE rejected, no ICE option given', { ICE => 'optional' }, <<SDP);
 v=0
 o=- 1545997027 1 IN IP4 198.51.100.3
 s=tester
@@ -6066,7 +6887,7 @@ a=candidate:ICEBASE 2 UDP 2130706430 203.0.113.1 PORT typ host
 a=candidate:ICEBASE 2 UDP 2130706174 2001:db8:4321::1 PORT typ host
 SDP
 
-answer('ICE SDP, no ICE option given', { }, <<SDP);
+answer('ICE SDP, no ICE option given', { ICE => 'optional' }, <<SDP);
 v=0
 o=- 1545997027 1 IN IP4 198.51.100.3
 s=tester
@@ -6137,6 +6958,72 @@ a=candidate:ICEBASE 2 UDP 2130706174 2001:db8:4321::1 PORT typ host
 SDP
 
 answer('ICE SDP with ICE force', { ICE => 'force' }, <<SDP);
+v=0
+o=- 1545997027 1 IN IP4 198.51.100.3
+s=tester
+t=0 0
+m=audio 2002 RTP/AVP 0
+c=IN IP4 198.51.100.3
+a=sendrecv
+a=ice-ufrag:bmnhkfdf
+a=ice-pwd:jetyhsdfgsdtjhtyjktrthsrhH
+a=candidate:keutydghfbhdcfsb 1 UDP 2130706431 198.51.100.3 2002 typ host
+a=candidate:ujksdfghfbhdcfsb 1 UDP 2130706175 2001:db8:abcd::3 2002 typ host
+a=candidate:keutydghfbhdcfsb 2 UDP 2130706430 198.51.100.3 2003 typ host
+a=candidate:ujksdfghfbhdcfsb 2 UDP 2130706174 2001:db8:abcd::3 2003 typ host
+--------------------------------
+v=0
+o=- 1545997027 1 IN IP4 198.51.100.3
+s=tester
+t=0 0
+m=audio PORT RTP/AVP 0
+c=IN IP4 203.0.113.1
+a=rtpmap:0 PCMU/8000
+a=sendrecv
+a=rtcp:PORT
+a=ice-ufrag:ICEUFRAG
+a=ice-pwd:ICEPWD
+a=candidate:ICEBASE 1 UDP 2130706431 203.0.113.1 PORT typ host
+a=candidate:ICEBASE 1 UDP 2130706175 2001:db8:4321::1 PORT typ host
+a=candidate:ICEBASE 2 UDP 2130706430 203.0.113.1 PORT typ host
+a=candidate:ICEBASE 2 UDP 2130706174 2001:db8:4321::1 PORT typ host
+SDP
+
+new_call;
+
+offer('ICE SDP with ICE default', { ICE => 'default' }, <<SDP);
+v=0
+o=- 1545997027 1 IN IP4 198.51.100.1
+s=tester
+t=0 0
+m=audio 2000 RTP/AVP 0
+c=IN IP4 198.51.100.1
+a=sendrecv
+a=ice-ufrag:asbsdfds
+a=ice-pwd:sfhwsrgyergws45ujhsrthsrhH
+a=candidate:sfthqw45hdfgdfsb 1 UDP 2130706431 198.51.100.3 2002 typ host
+a=candidate:ujksdfghfdfgdfsb 1 UDP 2130706175 2001:db8:abcd::3 2002 typ host
+a=candidate:sfthqw45hdfgdfsb 2 UDP 2130706430 198.51.100.3 2003 typ host
+a=candidate:ujksdfghfdfgdfsb 2 UDP 2130706174 2001:db8:abcd::3 2003 typ host
+----------------------------
+v=0
+o=- 1545997027 1 IN IP4 198.51.100.1
+s=tester
+t=0 0
+m=audio PORT RTP/AVP 0
+c=IN IP4 203.0.113.1
+a=rtpmap:0 PCMU/8000
+a=sendrecv
+a=rtcp:PORT
+a=ice-ufrag:ICEUFRAG
+a=ice-pwd:ICEPWD
+a=candidate:ICEBASE 1 UDP 2130706431 203.0.113.1 PORT typ host
+a=candidate:ICEBASE 1 UDP 2130706175 2001:db8:4321::1 PORT typ host
+a=candidate:ICEBASE 2 UDP 2130706430 203.0.113.1 PORT typ host
+a=candidate:ICEBASE 2 UDP 2130706174 2001:db8:4321::1 PORT typ host
+SDP
+
+answer('ICE SDP with ICE default', { ICE => 'default' }, <<SDP);
 v=0
 o=- 1545997027 1 IN IP4 198.51.100.3
 s=tester
@@ -6837,13 +7724,15 @@ o=- 1545997027 1 IN IP4 203.0.113.1
 s=tester
 c=IN IP4 203.0.113.1
 t=0 0
-m=audio PORT RTP/AVP 120 8 0 101
+m=audio PORT RTP/AVP 120 8 0 101 96
 a=rtpmap:120 opus/48000/2
 a=rtpmap:8 PCMA/8000
 a=rtpmap:0 PCMU/8000
 a=rtpmap:101 telephone-event/8000
+a=rtpmap:96 telephone-event/48000
 a=fmtp:120 useinbandfec=1; usedtx=1; maxaveragebitrate=64000
 a=fmtp:101 0-15
+a=fmtp:96 0-15
 a=sendrecv
 a=rtcp:PORT
 SDP

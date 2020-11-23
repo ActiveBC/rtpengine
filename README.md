@@ -36,6 +36,7 @@ the following additional features are available:
   + Bridging between ICE-enabled and ICE-unaware user agents
   + Optionally acting only as additional ICE relay/candidate
   + Optionally forcing relay of media streams by removing other ICE candidates
+  + Optionally act as an "ICE lite" peer only
 - SRTP (RFC 3711) support:
   + Support for SDES (RFC 4568) and DTLS-SRTP (RFC 5764)
   + AES-CM and AES-F8 ciphers, both in userspace and in kernel
@@ -873,19 +874,44 @@ Optionally included keys are:
 
 * `ICE`
 
-	Contains a string, valid values are `remove`, `force` or `force-relay`.
-	With `remove`, any ICE attributes are
-	stripped from the SDP body. With `force`, ICE attributes are first stripped, then new attributes are
-	generated and inserted, which leaves the media proxy as the only ICE candidate. The default behavior
-	(no `ICE` key present at all) is: if no ICE attributes are present, a new set is generated and the
-	media proxy lists itself as ICE candidate; otherwise, the media proxy inserts itself as a
-	low-priority candidate.
+	Contains a string which must be one of the following values:
+
+	With `remove`, any ICE attributes are stripped from the SDP body.
+
+	With `force`, ICE attributes are first stripped, then new attributes are
+	generated and inserted, which leaves the media proxy as the only ICE candidate.
+
+	With `default`, the behaviour will be the same as with `force` if the incoming SDP already
+	had ICE attributes listed. If the incoming SDP did not contain ICE attributes, then no
+	ICE attributes are added.
 
 	With `force-relay`, existing ICE candidates are left in place except `relay`
 	type candidates, and *rtpengine* inserts itself as a `relay` candidate. It will also leave SDP
 	c= and m= lines unchanged.
 
+	With `optional`, if no ICE attributes are present, a new set is generated and the
+	media proxy lists itself as ICE candidate; otherwise, the media proxy inserts itself as a
+	low-priority candidate. This used to be the default behaviour in previous versions of
+	*rtpengine*.
+
+	The default behaviour (no `ICE` key present at all) is the same as `default`.
+
 	This flag operates independently of the `replace` flags.
+
+* `ICE-lite`
+
+	Contains a string which must be one of the following values:
+
+	- `forward` to enable "ICE lite" mode towards the peer that this offer is sent to.
+
+	- `backward` to enable "ICE lite" mode towards the peer that has sent this offer.
+
+	- `both` to enable "ICE lite" towards both peers.
+
+	- `off` to disable "ICE lite" towards both peers and revert to full ICE support.
+
+	The default (keyword not present at all) is to use full ICE support, or to leave the previously
+	set "ICE lite" mode unchanged. This keyword is valid in `offer` messages only.
 
 * `transport protocol`
 
@@ -993,6 +1019,12 @@ Optionally included keys are:
 	- `active`
 
 		Reverts the `passive` setting. Only useful if the `dtls-passive` config option is set.
+
+* `DTLS-fingerprint`
+
+	Contains a string and is used to select the hashing function to generate the DTLS fingerprint
+	from the certificate. The default is SHA-1, or the same hashing function as was used by the
+	peer. Available are `SHA-1`, `SHA-224`, `SHA-256`, `SHA-384`, and `SHA-512`.
 
 * `SDES`
 

@@ -46,6 +46,20 @@ struct sdp_ng_flags {
 	int ptime,
 	    rev_ptime;
 	GHashTable *sdes_no;
+	str dtls_fingerprint;
+	enum {
+		ICE_DEFAULT = 0,
+		ICE_REMOVE,
+		ICE_FORCE,
+		ICE_FORCE_RELAY,
+		ICE_OPTIONAL,
+	} ice_option:3;
+	enum {
+		ICE_LITE_OFF = 0,
+		ICE_LITE_FWD,
+		ICE_LITE_BKW,
+		ICE_LITE_BOTH,
+	} ice_lite_option:2;
 	int asymmetric:1,
 	    protocol_accept:1,
 	    no_redis_update:1,
@@ -54,9 +68,6 @@ struct sdp_ng_flags {
 	    port_latching:1,
 	    replace_origin:1,
 	    replace_sess_conn:1,
-	    ice_remove:1,
-	    ice_force:1,
-	    ice_force_relay:1,
 	    rtcp_mux_offer:1,
 	    rtcp_mux_require:1,
 	    rtcp_mux_demux:1,
@@ -104,7 +115,9 @@ struct sdp_ng_flags {
 	    sdes_lifetime:1,
 	    sdes_pad:1,
 	    drop_traffic_start:1,
-	    drop_traffic_stop:1;
+	    drop_traffic_stop:1,
+	    passthrough_on:1,
+	    passthrough_off:1;
 };
 
 

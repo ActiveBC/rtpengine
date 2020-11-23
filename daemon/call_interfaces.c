@@ -825,6 +825,12 @@ static void call_ng_flags_flags(struct sdp_ng_flags *out, str *s, void *dummy) {
 		case CSH_LOOKUP("pad-crypto"):
 			out->sdes_pad = 1;
 			break;
+		case CSH_LOOKUP("passthrough"):
+			out->passthrough_on = 1;
+			break;
+		case CSH_LOOKUP("no-passthrough"):
+			out->passthrough_off = 1;
+			break;
 		default:
 			// handle values aliases from other dictionaries
 			if (call_ng_flags_prefix(out, s, "SDES-no-", call_ng_flags_str_ht, &out->sdes_no))
@@ -860,8 +866,8 @@ static void call_ng_flags_flags(struct sdp_ng_flags *out, str *s, void *dummy) {
 					return;
 				if (call_ng_flags_prefix(out, s, "T.38-", ng_t38_option, NULL))
 					return;
-#endif
 			}
+#endif
 
 			ilog(LOG_WARN, "Unknown flag encountered: '" STR_FORMAT "'",
 					STR_FMT(s));
@@ -921,18 +927,55 @@ static void call_ng_process_flags(struct sdp_ng_flags *out, bencode_item_t *inpu
 	if (bencode_dictionary_get_str(input, "ICE", &s)) {
 		switch (__csh_lookup(&s)) {
 			case CSH_LOOKUP("remove"):
-				out->ice_remove = 1;
+				out->ice_option = ICE_REMOVE;
 				break;
 			case CSH_LOOKUP("force"):
-				out->ice_force = 1;
+				out->ice_option = ICE_FORCE;
+				break;
+			case CSH_LOOKUP("default"):
+				out->ice_option = ICE_DEFAULT;
+				break;
+			case CSH_LOOKUP("optional"):
+				out->ice_option = ICE_OPTIONAL;
 				break;
 			case CSH_LOOKUP("force_relay"):
 			case CSH_LOOKUP("force-relay"):
 			case CSH_LOOKUP("force relay"):
-				out->ice_force_relay = 1;
+				out->ice_option = ICE_FORCE_RELAY;
 				break;
 			default:
 				ilog(LOG_WARN, "Unknown 'ICE' flag encountered: '"STR_FORMAT"'",
+						STR_FMT(&s));
+		}
+	}
+
+	if (bencode_dictionary_get_str(input, "ICE-lite", &s)) {
+		switch (__csh_lookup(&s)) {
+			case CSH_LOOKUP("off"):
+			case CSH_LOOKUP("none"):
+			case CSH_LOOKUP("no"):
+				out->ice_lite_option = ICE_LITE_OFF;
+				break;
+			case CSH_LOOKUP("forward"):
+			case CSH_LOOKUP("offer"):
+			case CSH_LOOKUP("fwd"):
+			case CSH_LOOKUP("fw"):
+				out->ice_lite_option = ICE_LITE_FWD;
+				break;
+			case CSH_LOOKUP("backward"):
+			case CSH_LOOKUP("backwards"):
+			case CSH_LOOKUP("reverse"):
+			case CSH_LOOKUP("answer"):
+			case CSH_LOOKUP("back"):
+			case CSH_LOOKUP("bkw"):
+			case CSH_LOOKUP("bk"):
+				out->ice_lite_option = ICE_LITE_BKW;
+				break;
+			case CSH_LOOKUP("both"):
+				out->ice_lite_option = ICE_LITE_BOTH;
+				break;
+			default:
+				ilog(LOG_WARN, "Unknown 'ICE-lite' flag encountered: '" STR_FORMAT "'",
 						STR_FMT(&s));
 		}
 	}
@@ -971,6 +1014,26 @@ static void call_ng_process_flags(struct sdp_ng_flags *out, bencode_item_t *inpu
 		}
 	}
 
+	if (bencode_dictionary_get_str(input, "passthrough", &s)) {
+		switch (__csh_lookup(&s)) {
+			case CSH_LOOKUP("on"):
+			case CSH_LOOKUP("yes"):
+			case CSH_LOOKUP("enable"):
+			case CSH_LOOKUP("enabled"):
+				out->passthrough_on = 1;
+				break;
+			case CSH_LOOKUP("no"):
+			case CSH_LOOKUP("off"):
+			case CSH_LOOKUP("disable"):
+			case CSH_LOOKUP("disabled"):
+				out->passthrough_off = 1;
+				break;
+			default:
+				ilog(LOG_WARN, "Unknown 'passthrough' flag encountered: '"STR_FORMAT"'",
+						STR_FMT(&s));
+		}
+	}
+
 	call_ng_flags_list(out, input, "rtcp-mux", call_ng_flags_rtcp_mux, NULL);
 	call_ng_flags_list(out, input, "SDES", ng_sdes_option, NULL);
 	call_ng_flags_list(out, input, "OSRTP", ng_osrtp_option, NULL);
@@ -992,6 +1055,7 @@ static void call_ng_process_flags(struct sdp_ng_flags *out, bencode_item_t *inpu
 	out->tos = bencode_dictionary_get_int_str(input, "TOS", 256);
 	bencode_get_alt(input, "record-call", "record call", &out->record_call_str);
 	bencode_dictionary_get_str(input, "metadata", &out->metadata);
+	bencode_dictionary_get_str(input, "DTLS-fingerprint", &out->dtls_fingerprint);
 
 	if (opmode == OP_OFFER) {
 		out->ptime = bencode_dictionary_get_int_str(input, "ptime", 0);
@@ -1421,7 +1485,7 @@ static void ng_stats_media(bencode_item_t *list, const struct call_media *m,
 	BF_M("ICE", ICE);
 	BF_M("trickle ICE", TRICKLE_ICE);
 	BF_M("ICE controlling", ICE_CONTROLLING);
-	BF_M("ICE-lite", ICE_LITE);
+	BF_M("ICE-lite peer", ICE_LITE_PEER);
 	BF_M("unidirectional", UNIDIRECTIONAL);
 	BF_M("loop check", LOOP_CHECK);
 	BF_M("transcoding", TRANSCODE);

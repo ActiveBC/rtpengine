@@ -740,8 +740,10 @@ struct call_media *call_media_new(struct call *call) {
 	med->call = call;
 	med->codecs_recv = g_hash_table_new_full(g_int_hash, g_int_equal, NULL, NULL);
 	med->codecs_send = g_hash_table_new_full(g_int_hash, g_int_equal, NULL, NULL);
-	med->codec_names_recv = g_hash_table_new_full(str_case_hash, str_case_equal, NULL, (void (*)(void*)) g_queue_free);
-	med->codec_names_send = g_hash_table_new_full(str_case_hash, str_case_equal, NULL, (void (*)(void*)) g_queue_free);
+	med->codec_names_recv = g_hash_table_new_full(str_case_hash, str_case_equal, free,
+			(void (*)(void*)) g_queue_free);
+	med->codec_names_send = g_hash_table_new_full(str_case_hash, str_case_equal, free,
+			(void (*)(void*)) g_queue_free);
 	return med;
 }
 
@@ -1101,7 +1103,7 @@ int __init_stream(struct packet_stream *ps) {
 		}
 
 		if (!PS_ISSET(ps, FINGERPRINT_VERIFIED) && media->fingerprint.hash_func
-				&& ps->dtls_cert)
+				&& media->fingerprint.digest_len && ps->dtls_cert)
 		{
 			if (dtls_verify_cert(ps))
 				return -1;
@@ -1240,10 +1242,28 @@ static void __ice_offer(const struct sdp_ng_flags *flags, struct call_media *thi
 	/* we offer ICE by default */
 	if (!MEDIA_ISSET(this, INITIALIZED))
 		MEDIA_SET(this, ICE);
-	if (flags->ice_remove)
+	// unless instructed not to
+	if (flags->ice_option == ICE_DEFAULT) {
+		if (!MEDIA_ISSET(other, ICE))
+			MEDIA_CLEAR(this, ICE);
+	}
+	else if (flags->ice_option == ICE_REMOVE)
 		MEDIA_CLEAR(this, ICE);
 
-	if (!flags->ice_force) {
+	if (flags->passthrough_on) {
+		ilog(LOG_DEBUG, "enabling passthrough mode");
+		MEDIA_SET(this, PASSTHRU);
+		MEDIA_SET(other, PASSTHRU);
+		return;
+	}
+	if (flags->passthrough_off) {
+		ilog(LOG_DEBUG, "disabling passthrough mode");
+		MEDIA_CLEAR(this, PASSTHRU);
+		MEDIA_CLEAR(other, PASSTHRU);
+		return;
+	}
+
+	if (flags->ice_option != ICE_FORCE && flags->ice_option != ICE_DEFAULT) {
 		/* special case: if doing ICE on both sides and ice_force is not set, we cannot
 		 * be sure that media will pass through us, so we have to disable certain features */
 		if (MEDIA_ISSET(this, ICE) && MEDIA_ISSET(other, ICE)) {
@@ -1262,23 +1282,46 @@ static void __ice_offer(const struct sdp_ng_flags *flags, struct call_media *thi
 		}
 	}
 
+	switch (flags->ice_lite_option) {
+		case ICE_LITE_OFF:
+			MEDIA_CLEAR(this, ICE_LITE_SELF);
+			MEDIA_CLEAR(other, ICE_LITE_SELF);
+			break;
+		case ICE_LITE_FWD:
+			MEDIA_SET(this, ICE_LITE_SELF);
+			MEDIA_CLEAR(other, ICE_LITE_SELF);
+			break;
+		case ICE_LITE_BKW:
+			MEDIA_CLEAR(this, ICE_LITE_SELF);
+			MEDIA_SET(other, ICE_LITE_SELF);
+			break;
+		case ICE_LITE_BOTH:
+			MEDIA_SET(this, ICE_LITE_SELF);
+			MEDIA_SET(other, ICE_LITE_SELF);
+			break;
+	};
+
 	/* determine roles (even if we don't actually do ICE) */
 	/* this = receiver, other = sender */
 	/* ICE_CONTROLLING is from our POV, the other ICE flags are from peer's POV */
-	if (MEDIA_ISSET(this, ICE_LITE))
+	if (MEDIA_ISSET(this, ICE_LITE_PEER) && !MEDIA_ISSET(this, ICE_LITE_SELF))
 		MEDIA_SET(this, ICE_CONTROLLING);
 	else if (!MEDIA_ISSET(this, INITIALIZED)) {
-		if (flags->opmode == OP_OFFER)
+		if (MEDIA_ISSET(this, ICE_LITE_SELF))
+			MEDIA_CLEAR(this, ICE_CONTROLLING);
+		else if (flags->opmode == OP_OFFER)
 			MEDIA_SET(this, ICE_CONTROLLING);
 		else
 			MEDIA_CLEAR(this, ICE_CONTROLLING);
 	}
 
 	/* roles are reversed for the other side */
-	if (MEDIA_ISSET(other, ICE_LITE))
+	if (MEDIA_ISSET(other, ICE_LITE_PEER) && !MEDIA_ISSET(other, ICE_LITE_SELF))
 		MEDIA_SET(other, ICE_CONTROLLING);
 	else if (!MEDIA_ISSET(other, INITIALIZED)) {
-		if (flags->opmode == OP_OFFER)
+		if (MEDIA_ISSET(other, ICE_LITE_SELF))
+			MEDIA_CLEAR(other, ICE_CONTROLLING);
+		else if (flags->opmode == OP_OFFER)
 			MEDIA_CLEAR(other, ICE_CONTROLLING);
 		else
 			MEDIA_SET(other, ICE_CONTROLLING);
@@ -1519,7 +1562,10 @@ static void __generate_crypto(const struct sdp_ng_flags *flags, struct call_medi
 	}
 
 skip_sdes:
-	;
+	if (flags->opmode == OP_OFFER) {
+		if (MEDIA_ISSET(this, DTLS) && !this->fingerprint.hash_func && flags->dtls_fingerprint.len)
+			this->fingerprint.hash_func = dtls_find_hash_func(&flags->dtls_fingerprint);
+	}
 }
 // for an answer, uses the incoming received list of SDES crypto suites to prune
 // the list of (generated) outgoing crypto suites to contain only the one that was
@@ -1657,7 +1703,7 @@ static void __fingerprint_changed(struct call_media *m) {
 	GList *l;
 	struct packet_stream *ps;
 
-	if (!m->fingerprint.hash_func)
+	if (!m->fingerprint.hash_func || !m->fingerprint.digest_len)
 		return;
 
 	ilog(LOG_INFO, "DTLS fingerprint changed, restarting DTLS");
@@ -1666,6 +1712,7 @@ static void __fingerprint_changed(struct call_media *m) {
 		ps = l->data;
 		PS_CLEAR(ps, FINGERPRINT_VERIFIED);
 		dtls_shutdown(ps);
+		__init_stream(ps);
 	}
 }
 
@@ -2075,7 +2122,7 @@ int monologue_offer_answer(struct call_monologue *other_ml, GQueue *streams,
 			/* copy parameters advertised by the sender of this message */
 			bf_copy_same(&other_media->media_flags, &sp->sp_flags,
 					SHARED_FLAG_RTCP_MUX | SHARED_FLAG_ASYMMETRIC | SHARED_FLAG_UNIDIRECTIONAL |
-					SHARED_FLAG_ICE | SHARED_FLAG_TRICKLE_ICE | SHARED_FLAG_ICE_LITE |
+					SHARED_FLAG_ICE | SHARED_FLAG_TRICKLE_ICE | SHARED_FLAG_ICE_LITE_PEER |
 					SHARED_FLAG_RTCP_FB);
 
 			// steal the entire queue of offered crypto params
@@ -2113,8 +2160,11 @@ int monologue_offer_answer(struct call_monologue *other_ml, GQueue *streams,
 			if (media->protocol == other_media->protocol)
 				call_str_cpy(call, &media->format_str, &sp->format_str);
 		}
+
+		codec_tracker_init(media);
 		codec_rtp_payload_types(media, other_media, &sp->rtp_payload_types, flags);
 		codec_handlers_update(media, other_media, flags, sp);
+		codec_tracker_finish(media);
 
 		/* send and recv are from our POV */
 		bf_copy_same(&media->media_flags, &sp->sp_flags,
@@ -2987,6 +3037,7 @@ static void monologue_stop(struct call_monologue *ml) {
 	for (GList *l = ml->medias.head; l; l = l->next) {
 		struct call_media *m = l->data;
 		t38_gateway_stop(m->t38_gateway);
+		codec_handlers_stop(&m->codec_handlers_store);
 	}
 }
 
