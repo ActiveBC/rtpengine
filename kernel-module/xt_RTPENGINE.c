@@ -8,6 +8,9 @@
 #include <linux/version.h>
 #include <linux/err.h>
 #include <linux/crypto.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,12,0)
+#include <crypto/internal/cipher.h>
+#endif
 #include <crypto/aes.h>
 #include <crypto/hash.h>
 #include <net/icmp.h>
@@ -36,7 +39,9 @@
 #include "rtpengine_config.h"
 
 MODULE_LICENSE("GPL");
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,12,0)
+MODULE_IMPORT_NS(CRYPTO_INTERNAL);
+#endif
 
 
 
@@ -3351,14 +3356,18 @@ static int send_proxy_packet4(struct sk_buff *skb, struct re_address *src, struc
 		uh->check = CSUM_MANGLED_0;
 
 	skb->protocol = htons(ETH_P_IP);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0)
-	if (ip_route_me_harder(par->state->net, skb, RTN_UNSPEC))
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,9,9) || \
+                (LINUX_VERSION_CODE >= KERNEL_VERSION(5,4,78) && LINUX_VERSION_CODE < KERNEL_VERSION(5,5,0)) || \
+                (LINUX_VERSION_CODE >= KERNEL_VERSION(4,19,158) && LINUX_VERSION_CODE < KERNEL_VERSION(4,20,0))
+        if (ip_route_me_harder(par->state->net, par->state->sk, skb, RTN_UNSPEC))
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0)
+        if (ip_route_me_harder(par->state->net, skb, RTN_UNSPEC))
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,4,0)
-	if (ip_route_me_harder(par->net, skb, RTN_UNSPEC))
+        if (ip_route_me_harder(par->net, skb, RTN_UNSPEC))
 #else
-	if (ip_route_me_harder(skb, RTN_UNSPEC))
+        if (ip_route_me_harder(skb, RTN_UNSPEC))
 #endif
-		goto drop;
+                goto drop;
 
 	skb->ip_summed = CHECKSUM_NONE;
 
@@ -3447,12 +3456,16 @@ static int send_proxy_packet6(struct sk_buff *skb, struct re_address *src, struc
 		uh->check = CSUM_MANGLED_0;
 
 	skb->protocol = htons(ETH_P_IPV6);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0)
-	if (ip6_route_me_harder(par->state->net, skb))
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,9,9) || \
+                (LINUX_VERSION_CODE >= KERNEL_VERSION(5,4,78) && LINUX_VERSION_CODE < KERNEL_VERSION(5,5,0)) || \
+                (LINUX_VERSION_CODE >= KERNEL_VERSION(4,19,158) && LINUX_VERSION_CODE < KERNEL_VERSION(4,20,0))
+        if (ip6_route_me_harder(par->state->net, par->state->sk, skb))
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0)
+        if (ip6_route_me_harder(par->state->net, skb))
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,4,0)
-	if (ip6_route_me_harder(par->net, skb))
+        if (ip6_route_me_harder(par->net, skb))
 #else
-	if (ip6_route_me_harder(skb))
+        if (ip6_route_me_harder(skb))
 #endif
 		goto drop;
 

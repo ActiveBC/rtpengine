@@ -1,5 +1,6 @@
 CC?=gcc
 CFLAGS		= -O2 -Wall -Wstrict-prototypes -shared -fPIC
+LDFLAGS		= -Wl,-allow-multiple-definition
 ifneq ($(RTPENGINE_VERSION),)
   CFLAGS	+= -DRTPENGINE_VERSION="\"$(RTPENGINE_VERSION)\""
 else
@@ -37,7 +38,7 @@ WORK=1
 module: libxt_RTPENGINE.so
 
 libxt_RTPENGINE.so: libxt_RTPENGINE.c
-	$(CC) $(CFLAGS) -o libxt_RTPENGINE.so libxt_RTPENGINE.c
+	$(CC) $(CFLAGS) -o libxt_RTPENGINE.so libxt_RTPENGINE.c $(LDFLAGS)
 
 else
 
@@ -51,10 +52,10 @@ module: libip6t_RTPENGINE.so
 endif
 
 libipt_RTPENGINE.so: libxt_RTPENGINE.c
-	$(CC) $(CFLAGS) -D__ipt -o libipt_RTPENGINE.so libxt_RTPENGINE.c
+	$(CC) $(CFLAGS) -D__ipt -o libipt_RTPENGINE.so libxt_RTPENGINE.c $(LDFLAGS)
 
 libip6t_RTPENGINE.so: libxt_RTPENGINE.c
-	$(CC) $(CFLAGS) -D__ip6t -o libip6t_RTPENGINE.so libxt_RTPENGINE.c
+	$(CC) $(CFLAGS) -D__ip6t -o libip6t_RTPENGINE.so libxt_RTPENGINE.c $(LDFLAGS)
 
 endif
 
